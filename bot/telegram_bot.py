@@ -9,6 +9,7 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
+from agents.skill_assessment import skill_assesment_agent
 from graph.state import LearningState
 from graph.workflow import build_graph
 from database.queries import (
@@ -26,21 +27,25 @@ load_dotenv()
 workflow = build_graph()
 
 user_stages = {}
-
 active_quizzes = {}
+assessment_sessions = {}
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_chat.id
     username = update.effective_user.username or "User"
 
+    print("START CALLED")
+    print("CHAT ID:", telegram_id)
+
     existing_user = get_user_by_telegram_id(telegram_id)
+    print("EXISTING USER:", existing_user)
 
     if existing_user:
         if existing_user.get("topic") and existing_user.get("skill_level"):
-            user_stages[telegram_id] = "curriculum_ready"
+            user_stages[telegram_id] = {"stage": "learning"}
         else:
-            user_stages[telegram_id] = "assessment"
+            user_stages[telegram_id] = {"stage": "assessment"}
 
         await update.message.reply_text(
             f"Welcome back {username}! 👋\n"
@@ -48,11 +53,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Level: {existing_user.get('skill_level', 'Not set')}\n\n"
             f"/learn — start new topic\n"
             f"/quiz  — take today's quiz\n"
+            f"/roadmap — view learning roadmap\n"
+            f"/resources — get study materials\n"
             f"/progress — see your progress"
         )
     else:
         insert_user(telegram_id, username)
-        user_stages[telegram_id] = "assessment"
+        print("INSERTING USER")
+        print("telegram_id =", telegram_id)
+        
+        user_stages[telegram_id] = {"stage": "topic"}
 
         await update.message.reply_text(
             f"Welcome {username}! 🎓\n\n"
@@ -60,71 +70,52 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Example: Python, Machine Learning..."
         )
 
+
 async def roadmap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_chat.id
 
     user = get_user_by_telegram_id(telegram_id)
-
     if not user:
-        await update.message.reply_text(
-            "Please use /start first."
-        )
+        await update.message.reply_text("Please use /start first.")
         return
 
     user_id = user["id"]
-
     curriculum = get_curriculum_by_user(user_id)
 
     if not curriculum:
-        await update.message.reply_text(
-            "No roadmap found. Use /learn first."
-        )
+        await update.message.reply_text("No roadmap found. Use /learn first.")
         return
 
     topic = user.get("topic") or "Unknown"
-
-    message = [
-        f"🗺️ Learning Roadmap: {topic}\n"
-    ]
+    message = [f"🗺️ Learning Roadmap: {topic}\n"]
 
     for week in curriculum:
         status = "✅" if week["is_completed"] else "⏳"
-
         message.append(
-            f"{status} Week {week['week_number']}: "
-            f"{week['module_title']}"
+            f"{status} Week {week['week_number']}: {week['module_title']}"
         )
 
-    await update.message.reply_text(
-        "\n".join(message)
-    )
+    await update.message.reply_text("\n".join(message))
+
 
 async def learn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_chat.id
-    user_stages[telegram_id] = "assessment"
+    user_stages[telegram_id] = {"stage": "topic"}
 
-    await update.message.reply_text(
-        "What topic do you want to learn? 🎯\n"
-        "Example: Python, Machine Learning, Web Development..."
-    )
+    await update.message.reply_text("📚 What topic do you want to learn?")
+
 
 async def resources(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_chat.id
 
     user = get_user_by_telegram_id(telegram_id)
-
     if not user:
-        await update.message.reply_text(
-            "Please /start first."
-        )
+        await update.message.reply_text("Please use /start first.")
         return
 
     curriculum = get_curriculum_by_user(user["id"])
-
     if not curriculum:
-        await update.message.reply_text(
-            "No curriculum found."
-        )
+        await update.message.reply_text("No curriculum found.")
         return
 
     current_week = next(
@@ -132,12 +123,9 @@ async def resources(update: Update, context: ContextTypes.DEFAULT_TYPE):
         curriculum[-1]
     )
 
-    resources = get_resources_by_curriculum(current_week["id"])
-
-    if not resources:
-        await update.message.reply_text(
-            "No resources available."
-        )
+    res_list = get_resources_by_curriculum(current_week["id"])
+    if not res_list:
+        await update.message.reply_text("No resources available.")
         return
 
     message = [
@@ -145,27 +133,17 @@ async def resources(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"{current_week['module_title']}\n"
     ]
 
-    for resource in resources:
-
+    for resource in res_list:
         icon = "📖"
-
         if resource["resource_type"] == "youtube":
             icon = "🎥"
-
         elif resource["resource_type"] == "course":
             icon = "🎓"
 
-        message.append(
-            f"{icon} {resource['title']}"
-        )
+        message.append(f"{icon} {resource['title']}")
+        message.append(f"🔗 {resource['url']}\n")
 
-        message.append(
-            f"🔗 {resource['url']}\n"
-        )
-
-    await update.message.reply_text(
-        "\n".join(message)
-    )
+    await update.message.reply_text("\n".join(message))
 
 
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -173,7 +151,7 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = get_user_by_telegram_id(telegram_id)
     if not user:
-        await update.message.reply_text("Please /start first!")
+        await update.message.reply_text("Please use /start first!")
         return
 
     user_id = user["id"]
@@ -185,31 +163,25 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-
     current_week = next(
         (w for w in curriculum if not w["is_completed"]),
         curriculum[-1]
     )
 
-
     questions = get_quiz_by_curriculum(current_week["id"])
-
     if not questions:
         await update.message.reply_text(
             "No quiz available yet. Please wait for your curriculum to be ready!"
         )
         return
 
-    
     active_quizzes[telegram_id] = {
         "questions": questions,
         "curriculum_id": current_week["id"],
         "user_id": user_id
     }
 
-
-    user_stages[telegram_id] = "quiz"
-
+    user_stages[telegram_id] = {"stage": "quiz"}
 
     message_lines = [
         f"🧠 Quiz Time! Week {current_week['week_number']}: {current_week['module_title']}\n"
@@ -223,9 +195,7 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message_lines.append(f"D) {q['option_d']}\n")
 
     message_lines.append("Reply with answers like: A B C D A")
-
     await update.message.reply_text("\n".join(message_lines))
-
 
 
 async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -233,7 +203,7 @@ async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = get_user_by_telegram_id(telegram_id)
     if not user:
-        await update.message.reply_text("Please /start first!")
+        await update.message.reply_text("Please use /start first!")
         return
 
     user_id = user["id"]
@@ -247,7 +217,7 @@ async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total = len(curriculum)
     done = len(completed)
 
-    filled = int((done / total) * 10)
+    filled = int((done / total) * 10) if total > 0 else 0
     bar = "█" * filled + "░" * (10 - filled)
 
     message = (
@@ -264,91 +234,91 @@ async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(message)
 
 
-
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_chat.id
-    user_message = update.message.text
+    username = update.effective_user.username or "User"
+    text = update.message.text.strip()
 
-    user = get_user_by_telegram_id(telegram_id)
-
-    if not user:
-        await update.message.reply_text(
-            "Please type /start first!"
-        )
-        return
-
-    if telegram_id in user_stages:
-        stage = user_stages[telegram_id]
-    else:
-        if not user.get("topic"):
-            stage = "assessment"
-        elif not user.get("skill_level"):
-            stage = "assessment"
-        else:
-            stage = "curriculum_ready"
+    if telegram_id not in user_stages:
+        existing_user = get_user_by_telegram_id(telegram_id)
         
-        user_stages[telegram_id] = stage
+        if existing_user:
+            if existing_user.get("topic") and existing_user.get("skill_level"):
+                user_stages[telegram_id] = {"stage": "learning"}
+            else:
+                user_stages[telegram_id] = {"stage": "assessment"}
+        else:
+            user_stages[telegram_id] = {"stage": "start"}
 
-    print(f"DEBUG stage: {stage} for user {telegram_id}")
+    current_stage_data = user_stages[telegram_id]
+    stage = current_stage_data.get("stage") if isinstance(current_stage_data, dict) else current_stage_data
 
-    if stage == "assessment":
-        await handle_assessment(update, context, telegram_id, user_message)
+    if stage == "start":
+        await update.message.reply_text("👋 Hello! Please initialize the bot properly by typing /start.")
+        
+    elif stage == "topic":
+        await handle_topic(update, telegram_id, username, text)
+
+    elif stage == "assessment":
+        await handle_assessment(update, telegram_id, username, text)
+
     elif stage == "quiz":
-        await handle_quiz_answer(update, context, telegram_id, user_message)
-    else:
+        await handle_quiz_answer(update, context, telegram_id, text)
+
+    elif stage == "learning":
         await update.message.reply_text(
-            "Use these commands:\n"
-            "/learn — start new topic\n"
-            "/quiz  — take today's quiz\n"
-            "/progress — see your progress"
+            "🧠 I'm listening! If you want to interact, use my commands:\n\n"
+            "/roadmap — view your path\n"
+            "/resources — study material\n"
+            "/quiz — take a test\n"
+            "/progress — view weekly stats\n"
+            "/learn — switch topics"
         )
+    else:
+        user_stages[telegram_id] = {"stage": "start"}
+        await update.message.reply_text("Something went out of sync. Please type /start to refresh.")
 
-async def handle_assessment(update, context, telegram_id, user_message):
-    user = get_user_by_telegram_id(telegram_id)
-
-    if not user:
-        username = update.effective_user.username or "User"
-        insert_user(telegram_id, username)
-        user = get_user_by_telegram_id(telegram_id)
-
+async def handle_topic(update, telegram_id, username, topic):
     state = {
-        "telegram_id": telegram_id,
-        "username": user.get("username") or "User",
-        "topic": user_message,
-        "user_message": user_message,
-        "skill_level": "",
-        "assessment_questions": [],
-        "assessment_answers": [],
-        "knowledge_gaps": [],
-        "curriculum": [],
-        "resources": {},
-        "current_module": 1,
-        "quiz_questions": [],
-        "quiz_score": 0,
-        "quiz_total": 0,
-        "completed_modules": [],
-        "quiz_scores": {},
-        "progress_report": "",
-        "next_module": "",
-        "response_message": "",
+        "telegram_id": telegram_id, "username": username, "topic": topic,
+        "user_message": "", "assessment_questions": [], "assessment_answers": [],
+        "knowledge_gap": [], "curriculum": [], "resources": {},
+        "current_module": 1, "quiz_questions": [], "quiz_score": 0,
+        "quiz_total": 0, "completed_modules": [], "quiz_scores": {},
+        "progress_report": "", "next_module": "", "response_message": "",
         "messages": []
     }
 
-    await update.message.reply_text("⏳ Assessing your skill level...")
+    result = skill_assesment_agent(state)
 
-    try:
-        result = workflow.invoke(state)
+    user_stages[telegram_id] = {
+        "stage": "assessment",
+        "state": {**state, **result}
+    }
+
+    await update.message.reply_text(result["response_message"])
+
+
+async def handle_assessment(update, telegram_id, username, answer):
+    state = user_stages[telegram_id]["state"]
+    state["user_message"] = answer
+
+    result = skill_assesment_agent(state)
+    state.update(result)
+
+    if result["skill_level"] == "":
+        user_stages[telegram_id]["state"] = state
         await update.message.reply_text(result["response_message"])
+        return
 
-        user_stages[telegram_id] = "curriculum_ready"
+    await update.message.reply_text("⏳ Creating your roadmap...")
+    print("STATE TELEGRAM ID:", state.get("telegram_id"))
 
-    except Exception as e:
-        print(f"❌ Workflow error: {str(e)}")
-        await update.message.reply_text(
-            f"Something went wrong: {str(e)}\n"
-            "Please try again or type /learn"
-        )
+    final_state = workflow.invoke(state)
+    user_stages[telegram_id] = {"stage": "learning"}
+
+    await update.message.reply_text(final_state["response_message"])
+
 
 async def handle_quiz_answer(update, context, telegram_id, user_message):
     quiz_data = active_quizzes.get(telegram_id)
@@ -365,11 +335,9 @@ async def handle_quiz_answer(update, context, telegram_id, user_message):
 
     if len(answers) != len(questions):
         await update.message.reply_text(
-            f"Please send exactly {len(questions)} answers!\n"
-            f"Example: A B C D A"
+            f"Please send exactly {len(questions)} answers!\nExample: A B C D A"
         )
         return
-
 
     score = 0
     result_lines = ["📝 Quiz Results:\n"]
@@ -383,10 +351,7 @@ async def handle_quiz_answer(update, context, telegram_id, user_message):
             score += 1
             result_lines.append(f"Q{i+1}: ✅ Correct!")
         else:
-            result_lines.append(
-                f"Q{i+1}: ❌ Wrong! "
-                f"Correct answer: {correct}"
-            )
+            result_lines.append(f"Q{i+1}: ❌ Wrong! Correct answer: {correct}")
 
     total = len(questions)
     percentage = (score / total) * 100
@@ -398,33 +363,25 @@ async def handle_quiz_answer(update, context, telegram_id, user_message):
     else:
         result_lines.append("❌ Keep studying! You can retry tomorrow.")
 
-   
     insert_quiz_attempt(
-        user_id=user_id,
-        curriculum_id=curriculum_id,
-        score=score,
-        total=total
+        user_id=user_id, curriculum_id=curriculum_id, score=score, total=total
     )
 
-    
-    del active_quizzes[telegram_id]
-    user_stages[telegram_id] = "chat"
-
+    user_stages[telegram_id] = {"stage": "learning"}
     await update.message.reply_text("\n".join(result_lines))
 
 
 def run_bot():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
-
     app = ApplicationBuilder().token(token).build()
 
-    
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("learn", learn))
     app.add_handler(CommandHandler("roadmap", roadmap))
     app.add_handler(CommandHandler("resources", resources))
     app.add_handler(CommandHandler("quiz", quiz))
     app.add_handler(CommandHandler("progress", progress))
+    
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("🤖 Bot is running...")

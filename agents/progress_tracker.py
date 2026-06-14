@@ -8,7 +8,8 @@ from database.queries import (
     get_quiz_attempts_by_user,
     get_curriculum_by_user,
     get_user_by_telegram_id,
-    mark_module_completed
+    mark_module_completed,
+    insert_quiz_attempt
 )
 
 def progress_tracker_agent(state: LearningState):
@@ -44,7 +45,6 @@ def progress_tracker_agent(state: LearningState):
             a["score"] / a["total"] * 100
             for a in attempts
         ) / len(attempts)
-
 
     response_message = f"""
 📊 Progress Report:

@@ -64,6 +64,25 @@ def curriculum_planner_agent(state:LearningState):
 
     curriculum=json.loads(response.content)["curriculum"]
 
+    telegram_id = state["telegram_id"]
+
+    print("=" * 50)
+    print("STATE:", state)
+    print("TELEGRAM ID:", telegram_id)
+
+    user = get_user_by_telegram_id(telegram_id)
+
+    print("USER:", user)
+    print("=" * 50)
+
+    if user is None:
+        raise ValueError(
+            f"No user found for telegram_id={telegram_id}"
+        )
+
+    user_id = user["id"]
+
+
     user=get_user_by_telegram_id(telegram_id)
     user_id=user["id"]
     insert_curriculum(
@@ -86,7 +105,7 @@ def curriculum_planner_agent(state:LearningState):
 
     return {
         "curriculum":curriculum,
-        "response_text":response_message
+        "response_message":response_message
     }
 
 

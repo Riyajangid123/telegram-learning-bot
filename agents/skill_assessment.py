@@ -31,7 +31,7 @@ def skill_assesment_agent(state: LearningState):
         Your job:
         - If less than 5 questions have been asked, ask the NEXT one question only
         - If 5 questions have been asked and answered, evaluate the user and return:
-            Skill Level: Beginner / Intermediate / Pro
+            Skill Level: beginner / intermediate / advanced
             Knowledge Gaps: list the weak areas
 
         Rules:
@@ -40,6 +40,8 @@ def skill_assesment_agent(state: LearningState):
         - Be conversational and friendly
         - Do not repeat questions already asked
     """)
+
+
 
     
     if user_message and user_message != topic:
@@ -60,8 +62,8 @@ def skill_assesment_agent(state: LearningState):
     
         skill_level = "beginner"
 
-        if "pro" in response_text:
-            skill_level = "pro"
+        if "advanced" in response_text:
+            skill_level = "advanced"
         elif "intermediate" in response_text:
             skill_level = "intermediate"
         else:

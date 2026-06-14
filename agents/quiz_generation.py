@@ -41,6 +41,7 @@ def quiz_generation_agent(state: LearningState):
         - Only ONE correct answer per question
         - Wrong options should be believable, not obvious
         - Match difficulty to {skill_level}
+        - give all 5 unique questions do not repeat them
         
         Return ONLY this JSON, nothing else:
         {{
