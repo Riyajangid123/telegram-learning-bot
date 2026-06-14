@@ -20,6 +20,8 @@ load_dotenv()
 
 bot = Bot(token=os.getenv("TELEGRAM_BOT_TOKEN"))
 
+today = date.today()
+
 
 async def send_daily_lesson():
     print("📚 Sending daily lessons...")
@@ -103,9 +105,9 @@ async def send_daily_lesson():
             )
             update_lesson_sent(
                 user_id=user_id,
-                sent_date=today
-            )
-
+                curriculum_id=current_week["id"],
+                sent_date=today)
+            
             print(f"✅ Lesson sent to user {telegram_id}")
 
         except Exception as e:
@@ -171,8 +173,9 @@ async def send_evening_quiz():
           
             update_quiz_sent(
                 user_id=user_id,
-                sent_date=date.today()
-            )
+                curriculum_id=current_week["id"],
+                sent_date=today
+                )
 
            
             from bot.telegram_bot import user_stages

@@ -185,3 +185,65 @@ def get_all_active_users():
     finally:
         cursor.close()
         conn.close()
+
+def insert_daily_log(user_id, curriculum_id, sent_date):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            INSERT INTO daily_logs (
+                user_id,
+                curriculum_id,
+                lesson_sent,
+                quiz_sent,
+                sent_date
+            )
+            VALUES (%s, %s, TRUE, FALSE, %s)
+            ON CONFLICT (user_id, curriculum_id, sent_date)
+            DO NOTHING
+        """, (user_id, curriculum_id, sent_date))
+
+        conn.commit()
+
+    finally:
+        cursor.close()
+        conn.close()
+
+def update_lesson_sent(user_id, curriculum_id, sent_date):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            UPDATE daily_logs
+            SET lesson_sent = TRUE
+            WHERE user_id = %s
+              AND curriculum_id = %s
+              AND sent_date = %s
+        """, (user_id, curriculum_id, sent_date))
+
+        conn.commit()
+
+    finally:
+        cursor.close()
+        conn.close()
+
+def update_quiz_sent(user_id, curriculum_id, sent_date):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            UPDATE daily_logs
+            SET quiz_sent = TRUE
+            WHERE user_id = %s
+              AND curriculum_id = %s
+              AND sent_date = %s
+        """, (user_id, curriculum_id, sent_date))
+
+        conn.commit()
+
+    finally:
+        cursor.close()
+        conn.close()
