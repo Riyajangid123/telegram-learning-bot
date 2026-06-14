@@ -19,7 +19,7 @@ from database.queries import (
     get_curriculum_by_user,
     insert_quiz_attempt,
     get_quiz_by_curriculum,
-    get_resources_by_curriculum
+    get_resources_by_user_and_week
 )
 
 load_dotenv()
@@ -109,6 +109,8 @@ async def resources(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_chat.id
 
     user = get_user_by_telegram_id(telegram_id)
+    user_id=user["id"]
+    
     if not user:
         await update.message.reply_text("Please use /start first.")
         return
@@ -123,7 +125,7 @@ async def resources(update: Update, context: ContextTypes.DEFAULT_TYPE):
         curriculum[-1]
     )
 
-    res_list = get_resources_by_curriculum(current_week["id"])
+    res_list = get_resources_by_user_and_week(user_id,current_week["id"])
     if not res_list:
         await update.message.reply_text("No resources available.")
         return
