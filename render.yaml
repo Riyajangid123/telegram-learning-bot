@@ -3,7 +3,6 @@ services:
     name: telegram-learning-bot
     env: docker
     plan: free
-    startCommand: python main.py & python -m http.server $PORT
     envVars:
       - key: DATABASE_URL
         sync: false
