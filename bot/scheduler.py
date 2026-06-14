@@ -18,8 +18,12 @@ from database.queries import (
 
 load_dotenv()
 
-bot = Bot(token=os.getenv("TELEGRAM_BOT_TOKEN"))
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
+print("TOKEN:", TOKEN)
+print("TOKEN EXISTS:", TOKEN is not None)
+
+bot = Bot(token=TOKEN)
 today = date.today()
 
 
