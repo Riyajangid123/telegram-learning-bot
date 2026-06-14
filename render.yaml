@@ -1,11 +1,11 @@
 services:
-  - type: worker
+  - type: web
     name: telegram-learning-bot
     env: docker
-    region: oregon 
     plan: free
+    startCommand: python main.py & python -m http.server $PORT
     envVars:
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
       - key: DATABASE_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
         sync: false
