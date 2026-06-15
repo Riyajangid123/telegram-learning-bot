@@ -51,7 +51,7 @@ Prerequisites
 
 Installation & Local Setup
 Clone the repository:
-git clone [https://github.com/your-username/telegram-learning-bot.git](https://github.com/Riyajangid123/telegram-learning-bot.git)
+git clone [https://github.com/Riyajangid123/telegram-learning-bot.git](https://github.com/Riyajangid123/telegram-learning-bot.git)
 cd telegram-learning-bot
 
 Contact & Connect
