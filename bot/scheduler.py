@@ -1,6 +1,7 @@
 import os
 import asyncio
 from datetime import date
+from pytz import timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
@@ -279,28 +280,31 @@ def setup_scheduler(bot_user_stages, bot_active_quizzes):
     global user_stages, active_quizzes
     user_stages = bot_user_stages       
     active_quizzes = bot_active_quizzes
-    scheduler = AsyncIOScheduler()
+
+    ist = timezone("Asia/Kolkata")
+    scheduler = AsyncIOScheduler(timezone=ist)
     
     scheduler.add_job(
     send_daily_lesson,
-        CronTrigger(hour=9, minute=0),
+        CronTrigger(hour=9, minute=0,timezone=ist),
         id="daily_lesson",
         name="Send Daily Lesson",
         replace_existing=True)
 
     
     scheduler.add_job(
-        send_evening_quiz,
-        CronTrigger(hour=20, minute=0),
-        id="evening_quiz",
-        name="Send Evening Quiz",
-        replace_existing=True)
+        send_evening_quiz, 
+        'cron', 
+        hour=20,     
+        minute=0, 
+        id='evening_quiz_job'
+    )
     
 
     
     scheduler.add_job(
         send_weekly_report,
-        CronTrigger(day_of_week="sun", hour=10, minute=0),
+        CronTrigger(day_of_week="sun", hour=10, minute=0,timezone=ist),
         id="weekly_report",
         name="Send Weekly Report",
         replace_existing=True)
