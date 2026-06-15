@@ -212,35 +212,50 @@ async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = get_user_by_telegram_id(telegram_id)
     if not user:
-        await update.message.reply_text("Please use /start first!")
+        await update.message.reply_text("👋 Please use /start first!")
         return
 
     user_id = user["id"]
     curriculum = get_curriculum_by_user(user_id)
 
     if not curriculum:
-        await update.message.reply_text("No curriculum found! Type /learn first.")
+        await update.message.reply_text("❌ No curriculum found! Type /learn first to build your roadmap.")
         return
 
     completed = [w for w in curriculum if w["is_completed"]]
+    pending = [w for w in curriculum if not w["is_completed"]]
+    
     total = len(curriculum)
     done = len(completed)
 
     filled = int((done / total) * 10) if total > 0 else 0
     bar = "█" * filled + "░" * (10 - filled)
 
+    
     message = (
-        f"📊 Your Progress Report\n\n"
-        f"Topic: {user.get('topic','')}\n"
-        f"Level: {user.get('skill_level','beginner')}\n\n"
-        f"Progress: [{bar}] {done}/{total} weeks\n\n"
+        f"📊 **Your Progress Report**\n\n"
+        f"👤 **Topic**: {user.get('topic','')}\n"
+        f"🎯 **Level**: {str(user.get('skill_level','beginner')).capitalize()}\n\n"
+        f"Progress: `[{bar}]` {done}/{total} weeks\n\n"
+        f"📋 **Curriculum Tracker**:\n"
     )
+
 
     for week in curriculum:
         status = "✅" if week["is_completed"] else "⏳"
-        message += f"{status} Week {week['week_number']}: {week['module_title']}\n"
+        message += f"  {status} Week {week['week_number']}: {week['module_title']}\n"
 
-    await update.message.reply_text(message)
+   
+    if pending:
+        next_week = pending[0]
+        message += (
+            f"\n📌 **Next Up**: Week {next_week['week_number']} - {next_week['module_title']}\n"
+            f"💡 Use /resources to fetch your learning material links or take a /quiz when ready!"
+        )
+    else:
+        message += "\n🎉 **Incredible work!** You have mastered this entire curriculum. Type /learn to master a brand new field!"
+
+    await update.message.reply_text(message, parse_mode="Markdown")
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
