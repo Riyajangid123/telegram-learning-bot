@@ -405,6 +405,3 @@ def run_bot():
         allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True
     )
-
-if __name__ == "__main__":
-    run_bot()
