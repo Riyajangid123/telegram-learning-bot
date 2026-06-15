@@ -5,8 +5,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
 from telegram import Bot
-from bot.telegram_bot import user_stages
-from bot.telegram_bot import active_quizzes
 from database.queries import (
     get_all_active_users,
     get_curriculum_by_user,
@@ -19,6 +17,9 @@ from database.queries import (
 )
 
 load_dotenv()
+
+user_stages = {}
+active_quizzes = {}
 
 def get_bot():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -275,7 +276,10 @@ async def send_weekly_report():
 
 from datetime import datetime,timedelta
 
-def setup_scheduler():
+def setup_scheduler(bot_user_stages, bot_active_quizzes):
+    global user_stages, active_quizzes
+    user_stages = bot_user_stages       
+    active_quizzes = bot_active_quizzes
     scheduler = AsyncIOScheduler()
 
     # Run the lesson function 10 seconds from right now to test database insertion

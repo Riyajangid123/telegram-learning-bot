@@ -397,7 +397,7 @@ def run_bot():
     ))
 
     async def post_init(application):
-        setup_scheduler()
+        setup_scheduler(user_stages,active_quizzes)
         print("⏰ Scheduler started inside bot!")
 
     app.post_init = post_init
