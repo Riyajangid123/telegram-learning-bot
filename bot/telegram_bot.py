@@ -180,10 +180,13 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     questions = get_quiz_by_curriculum(current_week["id"])
     if not questions:
         await update.message.reply_text(
-            "No quiz available yet. Please wait for your curriculum to be ready!"
+            "⏳ **Tomorrow's Module is loading...**\n\n"
+            "Your next module will start automatically tomorrow! "
+            "If you want to start it early right now instead, simply reply with: **`start next week`**",
+            parse_mode="Markdown"
         )
         return
-
+    
     active_quizzes[telegram_id] = {
         "questions": questions,
         "curriculum_id": current_week["id"],
@@ -261,7 +264,43 @@ async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_chat.id
     username = update.effective_user.username or "User"
-    text = update.message.text.strip()
+    text = update.message.text.strip().lower()
+
+    if text == "start next week":
+        user = get_user_by_telegram_id(telegram_id)
+        if user:
+            user_id = user["id"]
+            curriculum = get_curriculum_by_user(user_id)
+            
+
+            pending = [w for w in curriculum if not w["is_completed"]]
+            
+            if pending:
+                next_week = pending[0]
+                
+                # Fetch learning materials for this brand-new week
+                res_list = get_resources_by_user_and_week(user_id, next_week["week_number"])
+                
+                msg = [
+                    f"🚀 **Week {next_week['week_number']} Unlocked Manually!**\n",
+                    f"📚 **Title**: {next_week['module_title']}",
+                    f"📝 **Description**: {next_week['module_desc']}\n",
+                    "📋 **Your Study Resources**:"
+                ]
+                
+                for r in res_list:
+                    icon = "🎥" if r["resource_type"] == "youtube" else "🎓" if r["resource_type"] == "course" else "📖"
+                    msg.append(f"  {icon} {r['title']}\n  🔗 {r['url']}\n")
+                
+                msg.append("\n💡 Study hard! You can type /quiz whenever you feel ready for this week's test.")
+                
+
+                user_stages[telegram_id] = {"stage": "learning"}
+                await update.message.reply_text("\n".join(msg), parse_mode="Markdown")
+                return
+            else:
+                await update.message.reply_text("🎉 You have already finished all weeks in this roadmap!")
+                return
 
     if telegram_id not in user_stages:
         existing_user = get_user_by_telegram_id(telegram_id)
@@ -385,6 +424,11 @@ async def handle_quiz_answer(update, context, telegram_id, user_message):
     if percentage >= 60:
         result_lines.append("✅ Passed! Moving to next module tomorrow.")
         mark_module_completed(curriculum_id)
+        result_lines.append(
+            "\n➡️ Would you like to start the next week immediately?\n"
+            "Type **`start next week`** to jump straight in!\n"
+            "*(Otherwise, your next module will automatically unlock tomorrow.)*"
+        )
     else:
         result_lines.append("❌ Keep studying! You can retry tomorrow.")
 
