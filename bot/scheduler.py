@@ -50,7 +50,7 @@ async def send_daily_lesson():
 
             if not current_week:
         
-                await bot.send_message(
+                await get_bot().send_message(
                     chat_id=telegram_id,
                     text=(
                         "🎉 Congratulations! You completed your entire curriculum!\n"
@@ -95,7 +95,7 @@ async def send_daily_lesson():
             )
 
         
-            await bot.send_message(
+            await get_bot().send_message(
                 chat_id=telegram_id,
                 text="\n".join(message_lines)
             )
@@ -147,7 +147,7 @@ async def send_evening_quiz():
            
             questions = get_quiz_by_curriculum(current_week["id"])
             if not questions:
-                await bot.send_message(
+                await get_bot().send_message(
                     chat_id=telegram_id,
                     text="No quiz available for today. Keep studying! 📚"
                 )
@@ -169,7 +169,7 @@ async def send_evening_quiz():
             message_lines.append("Reply with your answers like: A B C D A")
 
           
-            await bot.send_message(
+            await get_bot().send_message(
                 chat_id=telegram_id,
                 text="\n".join(message_lines)
             )
@@ -267,7 +267,7 @@ async def send_weekly_report():
                     "\n🎉 You completed everything! Type /learn for a new topic!"
                 )
 
-            await bot.send_message(
+            await get_bot().send_message(
                 chat_id=telegram_id,
                 text="\n".join(message_lines)
             )
