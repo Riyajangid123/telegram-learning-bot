@@ -5,12 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def get_connection():
-    conn = psycopg2.connect(
-        host=os.getenv("host"),
-        user=os.getenv("user"),
-        password=os.getenv("password"),
-        dbname=os.getenv("database"),
-        port=int(os.getenv("port", 5432)),
-        sslmode="require"  
-    )
+    database_url = os.getenv("DATABASE_URL")
+    print(f"DEBUG URL exists: {database_url is not None}")
+    conn = psycopg2.connect(database_url, sslmode="require")
     return conn

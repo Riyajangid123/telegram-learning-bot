@@ -4,13 +4,15 @@ from graph.state import LearningState
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 import json
+import os
 
 load_dotenv()
 
 def curriculum_planner_agent(state:LearningState):
     model=ChatGroq(
          model="llama-3.3-70b-versatile",
-         temperature=0.3
+         temperature=0.3,
+         api_key=os.getenv("GROQ_API_KEY")
     )
 
     telegram_id=state["telegram_id"]

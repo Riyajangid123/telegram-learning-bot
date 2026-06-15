@@ -82,33 +82,33 @@ def resource_finder_agent(state: LearningState):
 
     model = ChatGroq(
         model="llama-3.1-8b-instant",
-        temperature=0.3
+        temperature=0.3,
+        api_key=os.getenv("GROQ_API_KEY")
     )
 
     model_with_tools = model.bind_tools(tools)
 
     if not messages:
         system_prompt = f"""You are a learning resource finder.
-        
-Find resources for each week of this curriculum:
-Topic: {topic}
-Skill Level: {skill_level}
-Curriculum: {str(curriculum)}
+        Find resources for each week of this curriculum:
+        Topic: {topic}
+        Skill Level: {skill_level}
+        Curriculum: {str(curriculum)}
 
-Use the available tools to search for:
-- youtube_search: find tutorial videos
-- search_articles: find documentation
-- search_courses: find free courses
+        Use the available tools to search for:
+        - youtube_search: find tutorial videos
+        - search_articles: find documentation
+        - search_courses: find free courses
 
-Search for Week 1 first, then Week 2, etc.
-After all searches, return resources as JSON:
-{{
-    "week_1": [
-        {{"title": "...", "url": "...", "type": "youtube"}},
-        {{"title": "...", "url": "...", "type": "article"}}
-    ],
-    "week_2": [...]
-}}"""
+        Search for Week 1 first, then Week 2, etc.
+        After all searches, return resources as JSON:
+        {{
+            "week_1": [
+                {{"title": "...", "url": "...", "type": "youtube"}},
+                {{"title": "...", "url": "...", "type": "article"}}
+            ],
+            "week_2": [...]
+        }}"""
         messages = [HumanMessage(content=system_prompt)]
 
     
