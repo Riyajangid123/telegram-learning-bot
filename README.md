@@ -55,5 +55,5 @@ git clone [https://github.com/Riyajangid123/telegram-learning-bot.git](https://g
 cd telegram-learning-bot
 
 Contact & Connect
-GitHub: Riyajangid123
-LinkedIn: www.linkedin.com/in/riya-jangid
+GitHub: @Riyajangid123
+LinkedIn: Riya Jangid
