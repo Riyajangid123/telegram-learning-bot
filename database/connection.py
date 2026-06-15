@@ -6,6 +6,9 @@ load_dotenv()
 
 def get_connection():
     database_url = os.getenv("DATABASE_URL")
-    print(f"DEBUG URL exists: {database_url is not None}")
-    conn = psycopg2.connect(database_url, sslmode="require")
+    
+    if not database_url:
+        raise ValueError("DATABASE_URL not set!")
+    
+    conn = psycopg2.connect(database_url)
     return conn
