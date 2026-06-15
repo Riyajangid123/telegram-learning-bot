@@ -5,6 +5,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
 from telegram import Bot
+from bot.telegram_bot import user_stages
+from bot.telegram_bot import active_quizzes
 from database.queries import (
     get_all_active_users,
     get_curriculum_by_user,
@@ -182,11 +184,9 @@ async def send_evening_quiz():
                 )
 
            
-            from bot.telegram_bot import user_stages
-            user_stages[telegram_id] = "quiz"
+            user_stages[telegram_id] = {"stage": "quiz"}
 
             
-            from bot.telegram_bot import active_quizzes
             active_quizzes[telegram_id] = {
                 "questions": questions,
                 "curriculum_id": current_week["id"],

@@ -125,7 +125,7 @@ async def resources(update: Update, context: ContextTypes.DEFAULT_TYPE):
         curriculum[-1]
     )
 
-    res_list = get_resources_by_user_and_week(user_id,current_week["id"])
+    res_list = get_resources_by_user_and_week(user_id,current_week["week_number"])
     if not res_list:
         await update.message.reply_text("No resources available.")
         return
@@ -284,7 +284,7 @@ async def handle_topic(update, telegram_id, username, topic):
     state = {
         "telegram_id": telegram_id, "username": username, "topic": topic,
         "user_message": "", "assessment_questions": [], "assessment_answers": [],
-        "knowledge_gap": [], "curriculum": [], "resources": {},
+        "knowledge_gaps": [], "curriculum": [], "resources": {},
         "current_module": 1, "quiz_questions": [], "quiz_score": 0,
         "quiz_total": 0, "completed_modules": [], "quiz_scores": {},
         "progress_report": "", "next_module": "", "response_message": "",
@@ -373,22 +373,38 @@ async def handle_quiz_answer(update, context, telegram_id, user_message):
     await update.message.reply_text("\n".join(result_lines))
 
 
+from bot.scheduler import setup_scheduler
+
 def run_bot():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
+    
+    if not token:
+        raise ValueError("TELEGRAM_BOT_TOKEN not set!")
+    
     app = ApplicationBuilder().token(token).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("learn", learn))
-    app.add_handler(CommandHandler("roadmap", roadmap))
-    app.add_handler(CommandHandler("resources", resources))
     app.add_handler(CommandHandler("quiz", quiz))
     app.add_handler(CommandHandler("progress", progress))
-    
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(CommandHandler("roadmap", roadmap))
+    app.add_handler(CommandHandler("resources", resources))
+    app.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        handle_message
+    ))
+
+    async def post_init(application):
+        setup_scheduler()
+        print("⏰ Scheduler started inside bot!")
+
+    app.post_init = post_init
 
     print("🤖 Bot is running...")
-    app.run_polling()
-
+    app.run_polling(
+        allowed_updates=Update.ALL_TYPES,
+        drop_pending_updates=True
+    )
 
 if __name__ == "__main__":
     run_bot()

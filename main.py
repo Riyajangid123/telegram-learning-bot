@@ -1,23 +1,22 @@
-import threading
-import os
-
 from database.models import create_tables
 from bot.telegram_bot import run_bot
-from bot.scheduler import setup_scheduler
-from app import app
+from threading import Thread
+from server import app as flask_app
 
-if __name__ == "__main__":
+def run_server():
+    flask_app.run(host="0.0.0.0", port=8080)
+
+def main():
     print("Setting up database...")
     create_tables()
+    print("✅ Database ready!")
 
-    print("Setting up scheduler...")
-    setup_scheduler()
+    Thread(target=run_server, daemon=True).start()
+    print("✅ Health check server running!")
+
 
     print("Starting bot...")
-    threading.Thread(target=run_bot, daemon=True).start()
+    run_bot()
 
-    print("Starting web server...")
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 10000))
-    )
+if __name__ == "__main__":
+    main()
