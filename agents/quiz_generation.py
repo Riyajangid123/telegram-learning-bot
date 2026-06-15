@@ -1,4 +1,6 @@
-from database.queries import get_curriculum_by_user, get_user_by_telegram_id, insert_quiz_questions
+from database.queries import (get_curriculum_by_user, get_user_by_telegram_id, 
+insert_quiz_questions,get_quiz_by_curriculum)
+
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 import json
@@ -37,11 +39,11 @@ def quiz_generation_agent(state: LearningState):
         
         Rules:
         - Questions must be based on {week_title} only
+        - ALL 5 questions must be completely different from each other
         - 4 options per question (A, B, C, D)
         - Only ONE correct answer per question
         - Wrong options should be believable, not obvious
         - Match difficulty to {skill_level}
-        - give all 5 unique questions do not repeat them
         
         Return ONLY this JSON, nothing else:
         {{
@@ -75,6 +77,19 @@ def quiz_generation_agent(state: LearningState):
         clean = clean.replace("```json", "").replace("```", "").strip()
         data = json.loads(clean)
         quiz_questions = data["questions"]
+
+        seen_questions = set()
+        unique_questions = []
+        
+        for q in quiz_questions:
+            question_text = q["question"].lower().strip()
+            if question_text not in seen_questions:
+                seen_questions.add(question_text)
+                unique_questions.append(q)
+            
+            quiz_questions = unique_questions[:5] 
+            print(f"✅ {len(quiz_questions)} unique questions generated")
+        
     except Exception as e:
         print(f"❌ Quiz parsing error: {str(e)}")
         quiz_questions = []
@@ -90,10 +105,30 @@ def quiz_generation_agent(state: LearningState):
     )
 
     if db_current_week and quiz_questions:
-        insert_quiz_questions(
-            curriculum_id=db_current_week["id"], 
-            questions=quiz_questions
-        )
+        existing_quiz = get_quiz_by_curriculum(db_current_week["id"])
+        
+        if existing_quiz:
+            print("⚠️ Quiz already exists — skipping insert")
+            quiz_questions = [
+                {
+                    "id": q["id"],
+                    "question": q["question"],
+                    "options": {
+                        "A": q["option_a"],
+                        "B": q["option_b"],
+                        "C": q["option_c"],
+                        "D": q["option_d"]
+                    },
+                    "correct": q["correct_ans"]
+                }
+                for q in existing_quiz
+            ]
+        else:
+            insert_quiz_questions(
+                curriculum_id=db_current_week["id"],
+                questions=quiz_questions
+            )
+            print("✅ Quiz questions inserted")
 
     message_lines = [
         f"🧠 Quiz Time! Week {current_module}: {current_week['title']}\n",

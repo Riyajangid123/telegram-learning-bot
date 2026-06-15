@@ -18,12 +18,12 @@ from database.queries import (
 
 load_dotenv()
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+def get_bot():
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        raise ValueError("TELEGRAM_BOT_TOKEN not set in environment!")
+    return Bot(token=token)
 
-print("TOKEN:", TOKEN)
-print("TOKEN EXISTS:", TOKEN is not None)
-
-bot = Bot(token=TOKEN)
 today = date.today()
 
 
