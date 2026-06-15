@@ -307,15 +307,18 @@ def setup_scheduler():
 
     scheduler.add_job(
     send_evening_quiz,
-    "quiz",
     run_date=datetime.now() + timedelta(seconds=20),
-    id="test_immediate_log")
+    id="test_immediate_log",
+    name="quiz",
+    replace_existing=True)
 
     scheduler.add_job(
     send_weekly_report,
-    "report",
-    run_date=datetime.now() + timedelta(seconds=30),
-    id="test_immediate_log")
+    run_date=datetime.now() + timedelta(seconds=20),
+    id="test_immediate_log",
+    name="report",
+    replace_existing=True)
+    
 
     
     #scheduler.add_job(
