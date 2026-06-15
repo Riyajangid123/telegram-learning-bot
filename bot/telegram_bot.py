@@ -278,25 +278,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if pending:
                 next_week = pending[0]
                 
-                # Fetch learning materials for this brand-new week
                 res_list = get_resources_by_user_and_week(user_id, next_week["week_number"])
                 
                 msg = [
-                    f"🚀 **Week {next_week['week_number']} Unlocked Manually!**\n",
-                    f"📚 **Title**: {next_week['module_title']}",
-                    f"📝 **Description**: {next_week['module_desc']}\n",
-                    "📋 **Your Study Resources**:"
+                    f"🚀 <b>Week {next_week['week_number']} Unlocked Manually!</b>\n",
+                    f"📚 <b>Title</b>: {next_week['module_title']}",
+                    f"📝 <b>Description</b>: {next_week['module_desc']}\n",
+                    "📋 <b>Your Study Resources</b>:"
                 ]
                 
                 for r in res_list:
                     icon = "🎥" if r["resource_type"] == "youtube" else "🎓" if r["resource_type"] == "course" else "📖"
-                    msg.append(f"  {icon} {r['title']}\n  🔗 {r['url']}\n")
+                    title_safe = str(r['title']).replace('<', '&lt;').replace('>', '&gt;')
+                    url_safe = str(r['url']).strip()
+
+                    msg.append(f"  {icon} {title_safe}\n  🔗 <a href='{url_safe}'>Link</a>\n")
+
                 
                 msg.append("\n💡 Study hard! You can type /quiz whenever you feel ready for this week's test.")
                 
 
                 user_stages[telegram_id] = {"stage": "learning"}
-                await update.message.reply_text("\n".join(msg), parse_mode="Markdown")
+                await update.message.reply_text("\n".join(msg), parse_mode="HTML", disable_web_page_preview=True)
                 return
             else:
                 await update.message.reply_text("🎉 You have already finished all weeks in this roadmap!")
