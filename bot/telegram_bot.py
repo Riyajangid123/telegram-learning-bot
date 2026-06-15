@@ -66,8 +66,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(
             f"Welcome {username}! 🎓\n\n"
-            f"What topic do you want to learn?\n"
-            f"Example: Python, Machine Learning..."
+            f"I am an AI-driven Learning Assistant designed to build custom curriculums. "
+            f"Before we begin, here is how our workflow works:\n\n"
+            f"🔍 1. **Skill Assessment**: Once you pick a topic, I will ask you a few screening questions to evaluate your current understanding.\n"
+            f"📊 2. **Gap Analysis**: My core agent will analyze your strengths and knowledge gaps.\n"
+            f"🗺️ 3. **Roadmap Generation**: I will generate a fully customized weekly roadmap, complete with resources and quizzes tailored exactly to your level.\n\n"
+            f"To kick off this process, **what topic do you want to master today?**\n"
+            f"*(Example: Python, Machine Learning, Data Structures)*"
         )
 
 
