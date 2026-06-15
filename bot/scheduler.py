@@ -274,59 +274,36 @@ async def send_weekly_report():
             print(f"❌ Error sending report to {user.get('telegram_id')}: {str(e)}")
             continue
 
-from datetime import datetime,timedelta
 
 def setup_scheduler(bot_user_stages, bot_active_quizzes):
     global user_stages, active_quizzes
     user_stages = bot_user_stages       
     active_quizzes = bot_active_quizzes
     scheduler = AsyncIOScheduler()
-
-    # Run the lesson function 10 seconds from right now to test database insertion
+    
     scheduler.add_job(
     send_daily_lesson,
-    "date",
-    run_date=datetime.now() + timedelta(seconds=10),
-    id="test_immediate_log")
+        CronTrigger(hour=9, minute=0),
+        id="daily_lesson",
+        name="Send Daily Lesson",
+        replace_existing=True)
 
     
-    #scheduler.add_job(
-    # send_daily_lesson,
-        #CronTrigger(hour=9, minute=0),
-        #id="daily_lesson",
-        #name="Send Daily Lesson",
-        #replace_existing=True)
-
-    
-    #scheduler.add_job(
-        #send_evening_quiz,
-        #CronTrigger(hour=20, minute=0),
-        #id="evening_quiz",
-        #name="Send Evening Quiz",
-        #replace_existing=True)
-
     scheduler.add_job(
-    send_evening_quiz,
-    run_date=datetime.now() + timedelta(seconds=20),
-    id="test_immediate_log",
-    name="quiz",
-    replace_existing=True)
+        send_evening_quiz,
+        CronTrigger(hour=20, minute=0),
+        id="evening_quiz",
+        name="Send Evening Quiz",
+        replace_existing=True)
+    
 
+    
     scheduler.add_job(
-    send_weekly_report,
-    run_date=datetime.now() + timedelta(seconds=20),
-    id="test_immediate_log",
-    name="report",
-    replace_existing=True)
-    
-
-    
-    #scheduler.add_job(
-        #send_weekly_report,
-        #CronTrigger(day_of_week="sun", hour=10, minute=0),
-        #id="weekly_report",
-        #name="Send Weekly Report",
-        #replace_existing=True)
+        send_weekly_report,
+        CronTrigger(day_of_week="sun", hour=10, minute=0),
+        id="weekly_report",
+        name="Send Weekly Report",
+        replace_existing=True)
 
     scheduler.start()
     print("⏰ Scheduler started!")
