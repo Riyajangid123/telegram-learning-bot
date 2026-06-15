@@ -3,6 +3,8 @@ services:
     name: telegram-learning-bot
     env: docker
     plan: free
+    maxInstances: 1               
+    deploymentStrategy: recreate
     envVars:
       - key: DATABASE_URL
         sync: false
