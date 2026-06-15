@@ -75,20 +75,24 @@ def get_curriculum_by_user(user_id):
         cursor.close()
         conn.close()
 
-def mark_module_completed(user_id, week_number):
+def mark_module_completed(curriculum_id):
+    """Marks a specific week/module as completed in the curriculums table using its unique ID."""
     conn = get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
             UPDATE curriculums
             SET is_completed = TRUE
-            WHERE user_id = %s AND week_number = %s
-        """, (user_id, week_number))
+            WHERE id = %s
+        """, (curriculum_id,))
         conn.commit()
+        print(f"💾 Database updated: Curriculum ID {curriculum_id} set to Completed.")
+    except Exception as e:
+        print(f"❌ Error updating curriculum completion status: {e}")
     finally:
         cursor.close()
         conn.close()
-
+        
 def insert_resources(curriculum_id, resources: list):
     conn = get_connection()
     cursor = conn.cursor()

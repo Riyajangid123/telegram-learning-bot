@@ -9,6 +9,7 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
+from bot.scheduler import setup_scheduler
 from agents.skill_assessment import skill_assesment_agent
 from graph.state import LearningState
 from graph.workflow import build_graph
@@ -19,7 +20,8 @@ from database.queries import (
     get_curriculum_by_user,
     insert_quiz_attempt,
     get_quiz_by_curriculum,
-    get_resources_by_user_and_week
+    get_resources_by_user_and_week,
+    mark_module_completed
 )
 
 load_dotenv()
@@ -367,18 +369,13 @@ async def handle_quiz_answer(update, context, telegram_id, user_message):
 
     if percentage >= 60:
         result_lines.append("✅ Passed! Moving to next module tomorrow.")
+        mark_module_completed(curriculum_id)
     else:
         result_lines.append("❌ Keep studying! You can retry tomorrow.")
 
     insert_quiz_attempt(
         user_id=user_id, curriculum_id=curriculum_id, score=score, total=total
     )
-
-    user_stages[telegram_id] = {"stage": "learning"}
-    await update.message.reply_text("\n".join(result_lines))
-
-
-from bot.scheduler import setup_scheduler
 
 def run_bot():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
