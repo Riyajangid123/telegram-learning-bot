@@ -210,74 +210,70 @@ async def send_weekly_report():
             telegram_id = user["telegram_id"]
             user_id = user["id"]
 
-            
             curriculum = get_curriculum_by_user(user_id)
-            attempts = get_quiz_attempts_by_user(user_id)
+           
+            raw_attempts = get_quiz_attempts_by_user(user_id)
+            attempts = list(raw_attempts) if raw_attempts else []
 
             if not curriculum:
                 continue
 
-            
+        
             completed = [w for w in curriculum if w["is_completed"]]
+            pending = [w for w in curriculum if not w["is_completed"]]
             total_weeks = len(curriculum)
             completed_weeks = len(completed)
 
-           
-            filled = int((completed_weeks / total_weeks) * 10)
+            filled = int((completed_weeks / total_weeks) * 10) if total_weeks > 0 else 0
             bar = "█" * filled + "░" * (10 - filled)
 
            
-            if attempts:
-                avg_score = sum(
-                    (a["score"] / a["total"]) * 100
-                    for a in attempts
-                ) / len(attempts)
+            if len(attempts) > 0:
+                total_percentage = 0
+                for a in attempts:
+                    
+                    total_q = a.get("total", 1) or 1 
+                    total_percentage += (a.get("score", 0) / total_q) * 100
+                avg_score = total_percentage / len(attempts)
             else:
                 avg_score = 0
 
-            
-            next_week = next(
-                (w for w in curriculum if not w["is_completed"]),
-                None
-            )
+    
+            next_week = pending[0] if pending else None
 
-            
+    
             message_lines = [
-                f"📊 Weekly Progress Report\n",
-                f"👤 Topic: {user['topic']}",
-                f"🎯 Level: {user['skill_level'].capitalize()}\n",
-                f"Progress: [{bar}] {completed_weeks}/{total_weeks} weeks\n",
+                "📊 **Weekly Progress Report**\n",
+                f"👤 **Topic**: {user.get('topic', 'Not set')}",
+                f"🎯 **Level**: {str(user.get('skill_level', 'beginner')).capitalize()}\n",
+                f"Progress: `[{bar}]` {completed_weeks}/{total_weeks} weeks",
                 f"📝 Quiz Average: {avg_score:.0f}%\n",
-                f"✅ Completed Modules:"
+                "📋 **Curriculum Overview**:"
             ]
 
             for week in curriculum:
                 status = "✅" if week["is_completed"] else "⏳"
-                message_lines.append(
-                    f"  {status} Week {week['week_number']}: {week['module_title']}"
-                )
+                message_lines.append(f"  {status} Week {week['week_number']}: {week['module_title']}")
 
             if next_week:
-                message_lines.append(
-                    f"\n📌 Next Week: {next_week['module_title']}"
-                    f"\nKeep going! You're doing great! 🚀"
-                )
+                message_lines.append(f"\n📌 **Next Up**: Week {next_week['week_number']} - {next_week['module_title']}")
+                message_lines.append("Keep going! You're doing great! 🚀")
             else:
-                message_lines.append(
-                    "\n🎉 You completed everything! Type /learn for a new topic!"
-                )
+                message_lines.append("\n🎉 You completed everything! Type /learn for a new topic!")
 
             await get_bot().send_message(
                 chat_id=telegram_id,
-                text="\n".join(message_lines)
+                text="\n".join(message_lines),
+                parse_mode="Markdown" 
             )
 
-            print(f"✅ Report sent to user {telegram_id}")
+            print(f"✅ Clean report sent to user {telegram_id}")
 
         except Exception as e:
-            print(f"❌ Error sending report to {user['telegram_id']}: {str(e)}")
+            print(f"❌ Error sending report to {user.get('telegram_id')}: {str(e)}")
             continue
-from datetime import datetime, timedelta
+
+from datetime import datetime,timedelta
 
 def setup_scheduler():
     scheduler = AsyncIOScheduler()
