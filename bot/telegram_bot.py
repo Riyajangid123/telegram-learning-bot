@@ -40,7 +40,7 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
             "response_message": ""
         }
     else:
-        user_memory_cache[telegram_id]["user_message"] = ""
+        user_memory_cache[telegram_id]["user_message"] = incoming_text
         
         if incoming_text.startswith("/"):
             user_memory_cache[telegram_id]["user_message"] = ""
@@ -56,14 +56,21 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
     await update.message.reply_text(final_reply)
 
 def run_bot():
-    token=os.getenv("TELEGRAM_BOT_TOKEN")
+    print("=== BOT INSTANCE STARTING ===")
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+
     app = Application.builder().token(token).build()
 
-    app.add_handler(MessageHandler(filters.TEXT | filters.COMMAND, telegram_message_handler))
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT | filters.COMMAND,
+            telegram_message_handler
+        )
+    )
 
     setup_scheduler(user_memory_cache)
 
-    print("scheduler is running inside bot...")
-    
-    print("🚀 Centralized LangGraph Controller Engine running on Telegram...")
+    print("=== STARTING POLLING ===")
+
     app.run_polling(drop_pending_updates=True)
