@@ -27,9 +27,20 @@ def router_node(state: LearningState):
             
     return {"user_message": user_message}
 
+def greeting_node(state: LearningState):
+    return {
+        "response_message":
+        "Hi! 👋 I'm your AI Learning Bot.\n\nWhat would you like to learn today?"
+    }
+
 def route_entry(state: LearningState) -> str:
     """Conditional router mapping for the entry point."""
     user_message = state.get("user_message", "").strip().lower()
+
+    greetings = ["hi", "hello", "hey", "hii", "helo"]
+
+    if user_message in greetings:
+        return "greeting"
     
     if user_message == "/quiz":
         return "quiz_generation"
@@ -50,6 +61,7 @@ def build_graph():
 
 
     workflow.add_node("router", router_node)
+    workflow.add_node("greeting", greeting_node)
     workflow.add_node("skill_assessment", skill_assesment_agent)
     workflow.add_node("curriculum_planner", curriculum_planner_agent)
     workflow.add_node("resource_finder", resource_finder_agent)
@@ -63,7 +75,7 @@ def build_graph():
     workflow.add_conditional_edges(
         "router",
         route_entry,
-        {
+        {   "greeting":"greeting",
             "skill_assessment": "skill_assessment",
             "quiz_generation": "quiz_generation",
             "track_progress": "track_progress"
@@ -83,8 +95,9 @@ def build_graph():
     workflow.add_conditional_edges("resource_finder", tools_condition) 
     workflow.add_edge("tools", "resource_finder")  
     workflow.add_edge("resource_finder", END) 
+    workflow.add_edge("greeting", END)
     
-    # Command workflows close out cleanly
+
     workflow.add_edge("quiz_generation", END)
     workflow.add_edge("track_progress", END)
 
