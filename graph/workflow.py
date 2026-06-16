@@ -64,7 +64,10 @@ def route_entry(state: LearningState) -> str:
     print("AWAITING_TOPIC:", state.get("awaiting_topic"))
     print("TOPIC:", state.get("topic"))
 
-    if state.get("awaiting_topic"):
+    if user_message == "/start":
+        return "welcome"
+
+    if state.get("awaiting_topic", False):
         return "skill_assessment"
 
     if user_message == "/quiz":
@@ -73,13 +76,8 @@ def route_entry(state: LearningState) -> str:
     if user_message == "/progress":
         return "track_progress"
 
-    telegram_id = state["telegram_id"]
-    user = get_user_by_telegram_id(telegram_id)
-
-    if not user:
-        return "welcome"
-
     return "skill_assessment"
+
 
 def route_assessment(state: LearningState) -> str:
     """Keeps the user in assessment until 5 answers are given, then advances."""

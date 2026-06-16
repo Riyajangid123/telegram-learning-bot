@@ -43,9 +43,8 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
     else:
         user_memory_cache[telegram_id]["user_message"] = incoming_text
         
-        if incoming_text.startswith("/"):
-            user_memory_cache[telegram_id]["user_message"] = ""
-
+    print("INPUT STATE:", user_memory_cache[telegram_id])
+    
     updated_state = await learning_graph.ainvoke(user_memory_cache[telegram_id])
 
     print("UPDATED STATE:", updated_state)
