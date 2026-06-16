@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 from graph.workflow import build_graph
+from bot.scheduler import setup_scheduler
 import os
 
 learning_graph = build_graph()
@@ -25,6 +26,8 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
             "knowledge_gaps": [],
             "curriculum": [],
             "resources": {},
+            "user_answers": [],
+            "awaiting_quiz_answers": False,
             "current_module": 1,
             "quiz_questions": [],
             "quiz_score": 0,
@@ -39,23 +42,25 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
         user_memory_cache[telegram_id]["user_message"] = incoming_text
         
         if incoming_text.startswith("/"):
-            user_memory_cache[telegram_id]["user_message"] = incoming_text
+            user_memory_cache[telegram_id]["user_message"] = ""
 
-    updated_state = learning_graph.invoke(user_memory_cache[telegram_id])
+    updated_state = await learning_graph.ainvoke(user_memory_cache[telegram_id])
     
     user_memory_cache[telegram_id] = updated_state
 
     final_reply = updated_state.get("response_message", "Processing...")
     
-    await update.message.reply_text(final_reply, parse_mode="Markdown")
+    await update.message.reply_text(final_reply)
 
 def run_bot():
     token=os.getenv("TELEGRAM_BOT_TOKEN")
     app = Application.builder().token(token).build()
-    
+
     app.add_handler(MessageHandler(filters.TEXT | filters.COMMAND, telegram_message_handler))
+
+    setup_scheduler(user_memory_cache)
+
+    print("scheduler is running inside bot...")
     
     print("🚀 Centralized LangGraph Controller Engine running on Telegram...")
     app.run_polling(drop_pending_updates=True)
-
-    return run_bot

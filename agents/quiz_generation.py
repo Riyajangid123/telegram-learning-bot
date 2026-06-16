@@ -17,17 +17,44 @@ def quiz_generation_agent(state: LearningState):
         api_key=os.getenv("GROQ_API_KEY")
     )
 
-    curriculum = state.get("curriculum", [])
     current_module = state.get("current_module", 1)
     telegram_id = state["telegram_id"]
     topic = state.get("topic", "")
     skill_level = state.get("skill_level", "beginner")
+    
+    curriculum = state.get("curriculum", [])
+    user = get_user_by_telegram_id(telegram_id)
+    if not user:
+        return {
+            "response_message": "User not found."
+        }
 
-   
+    user_id = user["id"]
+    db_curriculum = get_curriculum_by_user(user_id)
+
+    if not curriculum and db_curriculum:
+        curriculum = [
+            {
+                "week": w["week_number"],
+                "title": w["tiitle"],
+                "description": w["description"]
+            }
+            for w in db_curriculum
+        ]
+
+    if not curriculum:
+        return {
+            "response_message":
+            "No curriculum found. Complete assessment first."
+        }
+
     current_week = next(
         (w for w in curriculum if w["week"] == current_module),
-        curriculum[0] if curriculum else {"week": 1, "title": topic}
+        curriculum[0]
     )
+
+    print("TOPIC:", topic)
+    print("CURRENT WEEK:", current_week["title"])
 
     prompt = ChatPromptTemplate.from_template("""
         You are a quiz generator expert.
@@ -87,52 +114,17 @@ def quiz_generation_agent(state: LearningState):
                 seen_questions.add(question_text)
                 unique_questions.append(q)
             
-            quiz_questions = unique_questions[:5] 
-            print(f"✅ {len(quiz_questions)} unique questions generated")
+        quiz_questions = unique_questions[:5] 
+        print(f"✅ {len(quiz_questions)} unique questions generated")
+        insert_quiz_questions(curriculum["id"],quiz_questions)
         
     except Exception as e:
         print(f"❌ Quiz parsing error: {str(e)}")
         quiz_questions = []
 
-
-    user = get_user_by_telegram_id(telegram_id)
-    user_id = user["id"]
-    db_curriculum = get_curriculum_by_user(user_id)
-
-    db_current_week = next(
-        (w for w in db_curriculum if w["week_number"] == current_module),
-        db_curriculum[0] if db_curriculum else None
-    )
-
-    if db_current_week and quiz_questions:
-        existing_quiz = get_quiz_by_curriculum(db_current_week["id"])
-        
-        if existing_quiz:
-            print("⚠️ Quiz already exists — skipping insert")
-            quiz_questions = [
-                {
-                    "id": q["id"],
-                    "question": q["question"],
-                    "options": {
-                        "A": q["option_a"],
-                        "B": q["option_b"],
-                        "C": q["option_c"],
-                        "D": q["option_d"]
-                    },
-                    "correct": q["correct_ans"]
-                }
-                for q in existing_quiz
-            ]
-        else:
-            insert_quiz_questions(
-                curriculum_id=db_current_week["id"],
-                questions=quiz_questions
-            )
-            print("✅ Quiz questions inserted")
-
     message_lines = [
-        f"🧠 Quiz Time! Week {current_module}: {current_week['title']}\n",
-        f"Answer all 5 questions!\n"
+    f"🧠 Quiz Time! Week {current_module}: {current_week['title']}\n",
+    "Answer all 5 questions!\n"
     ]
 
     for q in quiz_questions:
@@ -143,11 +135,12 @@ def quiz_generation_agent(state: LearningState):
         message_lines.append(f"D) {q['options']['D']}\n")
 
     response_message = "\n".join(message_lines)
-    response_message += "Reply with your answers like: A B C D A"
+    response_message += "\nReply with your answers like: A B C D A"
 
     return {
-        "quiz_questions": quiz_questions,
-        "quiz_total": len(quiz_questions),
-        "quiz_score": 0,
-        "response_message": response_message
+    "quiz_questions": quiz_questions,
+    "quiz_total": len(quiz_questions),
+    "quiz_score": 0,
+    "awaiting_quiz_answers": True,
+    "response_message": response_message
     }

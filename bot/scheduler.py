@@ -18,9 +18,7 @@ from database.queries import (
 )
 
 load_dotenv()
-
-user_stages = {}
-active_quizzes = {}
+user_memory_cache = {}
 
 def get_bot():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -28,10 +26,9 @@ def get_bot():
         raise ValueError("TELEGRAM_BOT_TOKEN not set in environment!")
     return Bot(token=token)
 
-today = date.today()
-
 
 async def send_daily_lesson():
+    bot=get_bot()
     print("📚 Sending daily lessons...")
 
 
@@ -86,10 +83,7 @@ async def send_daily_lesson():
                     else:
                         icon = "🎓"
 
-                    message_lines.append(
-                        f"{icon} {r['title']}\n"
-                        f"   {r['url']}"
-                    )
+                    message_lines.append(f"{icon} {r['title']}\n🔗 {r['url']}")
             else:
                 message_lines.append("No resources found for this week.")
 
@@ -98,8 +92,7 @@ async def send_daily_lesson():
                 "Good luck with today's learning! 💪"
             )
 
-        
-            await get_bot().send_message(
+            await bot.send_message(
                 chat_id=telegram_id,
                 text="\n".join(message_lines)
             )
@@ -125,6 +118,7 @@ async def send_daily_lesson():
 
 
 async def send_evening_quiz():
+    bot=get_bot()
     print("🧠 Sending evening quizzes...")
 
     users = get_all_active_users()
@@ -173,7 +167,7 @@ async def send_evening_quiz():
             message_lines.append("Reply with your answers like: A B C D A")
 
           
-            await get_bot().send_message(
+            await bot.send_message(
                 chat_id=telegram_id,
                 text="\n".join(message_lines)
             )
@@ -182,18 +176,19 @@ async def send_evening_quiz():
             update_quiz_sent(
                 user_id=user_id,
                 curriculum_id=current_week["id"],
-                sent_date=today
+                sent_date=date.today()
                 )
 
            
-            user_stages[telegram_id] = {"stage": "quiz"}
+            if telegram_id not in user_memory_cache:
+                user_memory_cache[telegram_id] = {}
 
-            
-            active_quizzes[telegram_id] = {
-                "questions": questions,
-                "curriculum_id": current_week["id"],
-                "user_id": user_id
-            }
+            user_memory_cache[telegram_id].update({
+                "quiz_questions": questions,
+                "quiz_total": len(questions),
+                "awaiting_quiz_answers": True,
+                "current_module": current_week["week_number"]
+            })
 
             print(f"✅ Quiz sent to user {telegram_id}")
 
@@ -203,6 +198,7 @@ async def send_evening_quiz():
 
 
 async def send_weekly_report():
+    bot=get_bot()
     print("📊 Sending weekly reports...")
 
     users = get_all_active_users()
@@ -263,7 +259,7 @@ async def send_weekly_report():
             else:
                 message_lines.append("\n🎉 You completed everything! Type /learn for a new topic!")
 
-            await get_bot().send_message(
+            await bot.send_message(
                 chat_id=telegram_id,
                 text="\n".join(message_lines),
                 parse_mode="Markdown" 
@@ -276,10 +272,9 @@ async def send_weekly_report():
             continue
 
 
-def setup_scheduler(bot_user_stages, bot_active_quizzes):
-    global user_stages, active_quizzes
-    user_stages = bot_user_stages       
-    active_quizzes = bot_active_quizzes
+def setup_scheduler(memory_cache):
+    global user_memory_cache
+    user_memory_cache = memory_cache
 
     ist = timezone("Asia/Kolkata")
     scheduler = AsyncIOScheduler(timezone=ist)
@@ -290,15 +285,12 @@ def setup_scheduler(bot_user_stages, bot_active_quizzes):
         id="daily_lesson",
         name="Send Daily Lesson",
         replace_existing=True)
-
     
     scheduler.add_job(
-        send_evening_quiz, 
-        'cron', 
-        hour=20,     
-        minute=0, 
-        id='evening_quiz_job'
-    )
+    send_evening_quiz,
+    CronTrigger(hour=20, minute=0, timezone=ist),
+    id="evening_quiz_job",
+    replace_existing=True)
     
 
     

@@ -13,7 +13,7 @@ class LearningState(TypedDict):
     user_message: str
     skill_level: str
     
-    
+
     assessment_questions: list[str]
     assessment_answers: list[str]
     knowledge_gaps: list[str]
@@ -21,7 +21,11 @@ class LearningState(TypedDict):
     curriculum: list[dict]
     resources: dict
     current_module: int
+
     quiz_questions: list[dict]
+    user_answers: list[str]          
+    awaiting_quiz_answers: bool
+
     quiz_score: int
     quiz_total: int
     completed_modules: list[int]   

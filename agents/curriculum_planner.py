@@ -21,7 +21,7 @@ def curriculum_planner_agent(state:LearningState):
     knowledge_gap=state.get("knowledge_gaps",[])
 
     prompt=ChatPromptTemplate.from_template(
-        """You are a curriculum planner expert.
+        """You are a planner expert.
 
         User wants to learn: {topic}
         Their skill level: {skill_level}
@@ -64,51 +64,44 @@ def curriculum_planner_agent(state:LearningState):
         "knowledge_gaps":knowledge_gap
     })
 
-    curriculum=json.loads(response.content)["curriculum"]
 
-    telegram_id = state["telegram_id"]
+    clean = (response.content.replace("```json", "").replace("```", "").strip())
 
-    print("=" * 50)
-    print("STATE:", state)
-    print("TELEGRAM ID:", telegram_id)
+    try:
+        data = json.loads(clean)
+        curriculum = data["curriculum"]
+    except Exception as e:
+        print(f"Curriculum parse error: {e}")
+
+        return {
+            "response_message":
+            "Unable to generate curriculum right now."
+        }
 
     user = get_user_by_telegram_id(telegram_id)
 
-    print("USER:", user)
-    print("=" * 50)
-
-    if user is None:
+    if not user:
         raise ValueError(
             f"No user found for telegram_id={telegram_id}"
         )
 
     user_id = user["id"]
 
-
-    user=get_user_by_telegram_id(telegram_id)
-    user_id=user["id"]
     insert_curriculum(
-        user_id=user_id,
-        curriculum=curriculum
-    )
+    user_id=user_id,
+    curriculum=curriculum)
+    
+    message_lines = [
+    f"🎯 Your {skill_level.capitalize()} Learning Plan for {topic}\n"]
 
-    clean = response.content.replace("```json", "").replace("```", "")
-    data = json.loads(clean)
-
-    curriculum=data["curriculum"]
-
-    message_lines=[f"Your {skill_level.capitalize()} Learning Plan for {topic}:\n"]
     for week in curriculum:
-        message_lines.append(f"📅 Week {week['week']}:{week['title']}")
-        message_lines.append(f"📅 {week['description']}\n")
+        message_lines.append(
+            f"Week {week['week']}: {week['title']}"
+        )
 
     response_message = "\n".join(message_lines)
-    response_message += "\nI'll send you daily lessons starting tomorrow at 9 AM!"
 
     return {
-        "curriculum":curriculum,
-        "response_message":response_message
+        "curriculum": curriculum,
+        "response_message": response_message
     }
-
-
-
