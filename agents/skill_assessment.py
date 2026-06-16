@@ -8,6 +8,15 @@ import os
 load_dotenv()
 
 def skill_assesment_agent(state: LearningState):
+    if state.get("awaiting_topic"):
+        topic = state["user_message"]
+
+        return {
+            "topic": topic,
+            "awaiting_topic": False,
+            "response_message": f"Great! Let's learn {topic}.\n\nFirst, I'd like to assess your current knowledge level."
+        }
+    
     telegram_id = state["telegram_id"]
     topic = state["topic"]
     user_message = state["user_message"]

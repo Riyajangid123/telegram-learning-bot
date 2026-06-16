@@ -27,21 +27,46 @@ def router_node(state: LearningState):
             
     return {"user_message": user_message}
 
-def greeting_node(state: LearningState):
+def welcome_node(state: LearningState):
     return {
-        "response_message":
-        "Hi! 👋 I'm your AI Learning Bot.\n\nWhat would you like to learn today?"
-    }
+        "awaiting_topic": True,
+        "response_message": """
+    👋 Welcome to AI Learning Bot!
+
+    I'm your personal AI learning assistant.
+
+    🚀 Here's how I can help you:
+
+    ✅ Assess your current skill level
+    ✅ Create a personalized learning roadmap
+    ✅ Recommend courses, videos and articles
+    ✅ Generate quizzes to test your knowledge
+    ✅ Track your learning progress
+    ✅ Send daily lessons and reminders
+
+    📚 What would you like to learn today?
+
+    Examples:
+    • Machine Learning
+    • Python
+    • Data Structures & Algorithms
+    • Creative writing
+    """
+        }
+
 
 def route_entry(state: LearningState) -> str:
     """Conditional router mapping for the entry point."""
+    telegram_id = state["telegram_id"]
+
+    user = get_user_by_telegram_id(telegram_id)
+
+    if not user:
+        return "welcome"
+    
     user_message = state.get("user_message", "").strip().lower()
 
-    greetings = ["hi", "hello", "hey", "hii", "helo"]
 
-    if user_message in greetings:
-        return "greeting"
-    
     if user_message == "/quiz":
         return "quiz_generation"
     if user_message == "/progress":
@@ -61,7 +86,7 @@ def build_graph():
 
 
     workflow.add_node("router", router_node)
-    workflow.add_node("greeting", greeting_node)
+    workflow.add_node("welcome", welcome_node)
     workflow.add_node("skill_assessment", skill_assesment_agent)
     workflow.add_node("curriculum_planner", curriculum_planner_agent)
     workflow.add_node("resource_finder", resource_finder_agent)
@@ -75,7 +100,7 @@ def build_graph():
     workflow.add_conditional_edges(
         "router",
         route_entry,
-        {   "greeting":"greeting",
+        {   "welcome": "welcome",
             "skill_assessment": "skill_assessment",
             "quiz_generation": "quiz_generation",
             "track_progress": "track_progress"
@@ -95,7 +120,7 @@ def build_graph():
     workflow.add_conditional_edges("resource_finder", tools_condition) 
     workflow.add_edge("tools", "resource_finder")  
     workflow.add_edge("resource_finder", END) 
-    workflow.add_edge("greeting", END)
+    workflow.add_edge("welcome", END)
     
 
     workflow.add_edge("quiz_generation", END)

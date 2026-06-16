@@ -25,6 +25,7 @@ class LearningState(TypedDict):
     quiz_questions: list[dict]
     user_answers: list[str]          
     awaiting_quiz_answers: bool
+    awaiting_topic:bool
 
     quiz_score: int
     quiz_total: int
