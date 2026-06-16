@@ -48,7 +48,7 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
     
     await update.message.reply_text(final_reply, parse_mode="Markdown")
 
-def main():
+def run_bot():
     app = Application.builder().token("YOUR_TELEGRAM_TOKEN").build()
     
     app.add_handler(MessageHandler(filters.TEXT | filters.COMMAND, telegram_message_handler))
@@ -56,5 +56,4 @@ def main():
     print("🚀 Centralized LangGraph Controller Engine running on Telegram...")
     app.run_polling(drop_pending_updates=True)
 
-if __name__ == "__main__":
-    main()
+    return run_bot
