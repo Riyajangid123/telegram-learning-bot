@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 from graph.workflow import build_graph
+import os
 
 learning_graph = build_graph()
 
@@ -49,7 +50,8 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
     await update.message.reply_text(final_reply, parse_mode="Markdown")
 
 def run_bot():
-    app = Application.builder().token("YOUR_TELEGRAM_TOKEN").build()
+    token=os.getenv("TELEGRAM_BOT_TOKEN")
+    app = Application.builder().token(token).build()
     
     app.add_handler(MessageHandler(filters.TEXT | filters.COMMAND, telegram_message_handler))
     
