@@ -3,20 +3,27 @@ from database.queries import update_user_topic_skill_level, get_user_by_telegram
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
+import json
 import os
 
 load_dotenv()
 
 def skill_assesment_agent(state: LearningState):
     if state.get("awaiting_topic"):
-        topic = state["user_message"]
+        topic = state["user_message"].lower()
+        first_question = f"What do you already know about {topic}?"
 
         return {
             "topic": topic,
             "awaiting_topic": False,
-            "response_message": f"Great! Let's learn {topic}.\n\nFirst, I'd like to assess your current knowledge level."
+            "assessment_questions": [first_question],
+            "assessment_answers": [],
+            "response_message":
+                f"Great! Let's learn {topic}. 🚀\n\n"
+                f"I'll first assess your current knowledge.\n\n"
+                f"Question 1:\n{first_question}"
         }
-    
+
     telegram_id = state["telegram_id"]
     topic = state["topic"]
     user_message = state["user_message"]
@@ -48,6 +55,15 @@ def skill_assesment_agent(state: LearningState):
         - Questions should test practical knowledge of {topic}
         - Be conversational and friendly
         - Do not repeat questions already asked
+        If 5 questions have been answered, return ONLY:
+
+        {
+            "skill_level": "beginner",
+            "knowledge_gaps": [
+                "gap1",
+                "gap2"
+            ]
+        }
     """)
 
 
@@ -65,23 +81,13 @@ def skill_assesment_agent(state: LearningState):
     })
 
     
-    if len(assessment_answers) >= 5:
+    if len(assessment_answers) == 5:
         response_text = response.content.lower()
 
     
-        skill_level = "beginner"
-
-        if "advanced" in response_text:
-            skill_level = "advanced"
-        elif "intermediate" in response_text:
-            skill_level = "intermediate"
-        else:
-            skill_level = "beginner"
-
-        gaps = []
-        if "knowledge gaps:" in response_text:
-            gaps_section = response_text.split("knowledge gaps:")[1]
-            gaps = [g.strip() for g in gaps_section.split("-") if g.strip()]
+        data = json.loads(response.content)
+        skill_level = data["skill_level"]
+        gaps = data["knowledge_gaps"]
 
     
         update_user_topic_skill_level(

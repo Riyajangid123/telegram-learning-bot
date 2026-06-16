@@ -46,6 +46,8 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
             user_memory_cache[telegram_id]["user_message"] = ""
 
     updated_state = await learning_graph.ainvoke(user_memory_cache[telegram_id])
+
+    print("UPDATED STATE:", updated_state)
     
     user_memory_cache[telegram_id] = updated_state
 
