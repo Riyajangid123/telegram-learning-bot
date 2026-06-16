@@ -28,6 +28,7 @@ def router_node(state: LearningState):
     return {"user_message": user_message}
 
 def welcome_node(state: LearningState):
+    print("WELCOME NODE EXECUTED")
     return {
         "awaiting_topic": True,
         "response_message": """
@@ -65,6 +66,9 @@ def route_entry(state: LearningState) -> str:
         return "welcome"
     
     user_message = state.get("user_message", "").strip().lower()
+
+    print("ROUTER MESSAGE:", user_message)
+    print("AWAITING_TOPIC:", state.get("awaiting_topic"))
 
 
     if user_message == "/quiz":
