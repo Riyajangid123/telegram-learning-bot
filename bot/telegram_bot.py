@@ -12,6 +12,7 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
     telegram_id = update.effective_chat.id
     username = update.effective_user.username or "Learner"
     incoming_text = update.message.text
+    print("MESSAGE RECEIVED:", update.message.text)
 
     if telegram_id not in user_memory_cache:
         user_memory_cache[telegram_id] = {
