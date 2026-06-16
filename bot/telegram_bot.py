@@ -157,58 +157,50 @@ async def resources(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_chat.id
-
+    
     user = get_user_by_telegram_id(telegram_id)
     if not user:
-        await update.message.reply_text("Please use /start first!")
+        await update.message.reply_text("👋 Please use /start first!")
         return
 
     user_id = user["id"]
     curriculum = get_curriculum_by_user(user_id)
-
-    if not curriculum:
-        await update.message.reply_text(
-            "No curriculum found! Type /learn to create one first."
-        )
+    
+    current_week = next((w for w in curriculum if not w["is_completed"]), None)
+    
+    if not current_week:
+        await update.message.reply_text("🎉 You have completed all modules in your roadmap! Use /progress to review your tracker.")
         return
-
-    current_week = next(
-        (w for w in curriculum if not w["is_completed"]),
-        curriculum[-1]
-    )
 
     questions = get_quiz_by_curriculum(current_week["id"])
+
     if not questions:
-        await update.message.reply_text(
-            "⏳ **Tomorrow's Module is loading...**\n\n"
-            "Your next module will start automatically tomorrow! "
-            "If you want to start it early right now instead, simply reply with: **`start next week`**",
-            parse_mode="Markdown"
-        )
+        resources = get_resources_by_user_and_week(user_id, current_week["week_number"])
+        
+        if not resources:
+            await update.message.reply_text(
+                f"⏳ **Week {current_week['week_number']} hasn't started yet!**\n\n"
+                f"Your next module drops automatically every morning at 9:00 AM IST.\n"
+                f"If you want to skip the wait and unlock it right now, simply reply with: **`start next week`**",
+                parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text(
+                f"📖 **Week {current_week['week_number']}: {current_week['module_title']}** is active!\n\n"
+                f"I haven't generated a formal quiz for this section yet. Take some time to review your learning materials via /resources.\n\n"
+                f"Once you feel confident and ready to mark this week complete, reply with: **`start next week`** to move forward!",
+                parse_mode="Markdown"
+            )
         return
-    
+
     active_quizzes[telegram_id] = {
         "questions": questions,
         "curriculum_id": current_week["id"],
         "user_id": user_id
     }
-
     user_stages[telegram_id] = {"stage": "quiz"}
 
-    message_lines = [
-        f"🧠 Quiz Time! Week {current_week['week_number']}: {current_week['module_title']}\n"
-    ]
-
-    for i, q in enumerate(questions):
-        message_lines.append(f"Q{i+1}: {q['question']}")
-        message_lines.append(f"A) {q['option_a']}")
-        message_lines.append(f"B) {q['option_b']}")
-        message_lines.append(f"C) {q['option_c']}")
-        message_lines.append(f"D) {q['option_d']}\n")
-
-    message_lines.append("Reply with answers like: A B C D A")
-    await update.message.reply_text("\n".join(message_lines))
-
+    await update.message.reply_text(f"📝 **Starting Week {current_week['week_number']} Quiz!**\nReply with your answers choice (e.g., A B C D A)")
 
 async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_chat.id
