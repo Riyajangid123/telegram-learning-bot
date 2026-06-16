@@ -299,8 +299,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
 
                 user_stages[telegram_id] = {"stage": "learning"}
-                await update.message.reply_text("\n".join(msg), parse_mode="HTML", disable_web_page_preview=True)
+                try:
+                    await update.message.reply_text("\n".join(msg), parse_mode="HTML", disable_web_page_preview=True)
+                except Exception as e:
+                    print(f"❌ Telegram HTML rendering failed: {e}")
+                    fallback_text = f"🚀 Week {next_week['week_number']} Unlocked! Use /resources to view materials."
+                    await update.message.reply_text(fallback_text)
                 return
+            
             else:
                 await update.message.reply_text("🎉 You have already finished all weeks in this roadmap!")
                 return
