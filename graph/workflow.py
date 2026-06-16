@@ -58,6 +58,10 @@ def welcome_node(state: LearningState):
 
 def route_entry(state: LearningState) -> str:
     """Conditional router mapping for the entry point."""
+
+    if state.get("awaiting_topic"):
+        return "skill_assessment"
+
     telegram_id = state["telegram_id"]
 
     user = get_user_by_telegram_id(telegram_id)

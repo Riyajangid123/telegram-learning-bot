@@ -27,6 +27,7 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
             "curriculum": [],
             "resources": {},
             "user_answers": [],
+            "awaiting_topic":False,
             "awaiting_quiz_answers": False,
             "current_module": 1,
             "quiz_questions": [],
@@ -39,7 +40,7 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
             "response_message": ""
         }
     else:
-        user_memory_cache[telegram_id]["user_message"] = incoming_text
+        user_memory_cache[telegram_id]["user_message"] = ""
         
         if incoming_text.startswith("/"):
             user_memory_cache[telegram_id]["user_message"] = ""
