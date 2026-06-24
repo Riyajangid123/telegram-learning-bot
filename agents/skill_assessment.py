@@ -58,43 +58,59 @@ def skill_assesment_agent(state: LearningState):
         api_key=os.getenv("GROQ_API_KEY")
     )
 
-    prompt = ChatPromptTemplate.from_template("""
+    question_prompt = ChatPromptTemplate.from_template("""
         You are a skill assessment expert.
-        The user wants to learn: {topic}
 
-        Questions asked so far: {questions}
-        Answers given so far: {answers}
+        Topic: {topic}
 
-        Your job:
-        - If less than 5 questions have been asked, ask the NEXT one question only
-        - If 5 questions have been asked and answered, evaluate the user and return:
-            Skill Level: beginner / intermediate / advanced
-            Knowledge Gaps: list the weak areas
+        Questions:
+        {questions}
+
+        Answers:
+        {answers}
+
+        Ask ONLY the next assessment question.
 
         Rules:
-        - Ask ONE question at a time
-        - Questions should test practical knowledge of {topic}
-        - Be conversational and friendly
-        - Do not repeat questions already asked
-        If 5 questions have been answered, return ONLY:
+        - Ask exactly one new question.
+        - Do not evaluate the user.
+        - Do not return JSON.
+        """)
+
+    evaluation_prompt = ChatPromptTemplate.from_template("""
+        You are a skill assessment expert.
+
+        Topic: {topic}
+
+        Questions:
+        {questions}
+
+        Answers:
+        {answers}
+
+        Evaluate the user's knowledge.
+
+        Return ONLY valid JSON:
 
         {{
-            "skill_level": "beginner",
-            "knowledge_gaps": [
-                "gap1",
-                "gap2"
-            ]
+        "skill_level": "beginner",
+        "knowledge_gaps": [
+            "...",
+            "..."
+        ]
         }}
-    """)
+        """)
 
-    chain=prompt|model
+    chain1=question_prompt|model
+    chain2=evaluation_prompt|model
+
 
     if user_message and user_message != topic:
         assessment_answers.append(user_message)
 
     if len(assessment_questions) == 5 and len(assessment_answers) == 5:
 
-        response = chain.invoke({
+        response = chain2.invoke({
             "topic": topic,
             "questions": assessment_questions,
             "answers": assessment_answers
@@ -130,6 +146,13 @@ def skill_assesment_agent(state: LearningState):
         }
 
     else:
+
+        response = chain1.invoke({
+            "topic": topic,
+            "questions": assessment_questions,
+            "answers": assessment_answers
+        })
+
         assessment_questions.append(response.content)
 
         return {
