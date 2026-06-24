@@ -114,10 +114,8 @@ async def telegram_message_handler(
     print("\nINPUT STATE")
     print(state)
 
-    is_completing_assessment = state.get("phase") == "assessment" and (
-        len(state.get("assessment_answers", [])) + 1 >= len(state.get("assessment_questions", []))
-        if state.get("assessment_questions") else False
-    )
+    
+    is_completing_assessment = state.get("phase") == "assessment" and len(state.get("assessment_answers", [])) == 4
 
     try:
         updated_state = await learning_graph.ainvoke(state)
