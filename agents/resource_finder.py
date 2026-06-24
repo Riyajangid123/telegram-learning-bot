@@ -103,17 +103,30 @@ def resource_finder_agent(state: LearningState):
         - search_articles: find documentation
         - search_courses: find free courses
 
-        CRITICAL INSTRUCTION: Present your final response directly as a warm, interactive overview 
-        message explaining that you evaluated their background and generated a custom roadmap for their 
-        skill level ({skill_level}).
-        Organize it by weeks, and directly show the clickable resource titles and URLs fetched by your 
-        tools inside the text presentation. Do not wrap them in raw markdown tables or complex structures.
+        CRITICAL INSTRUCTION: Your response must be clean, ultra-compact, and minimal. 
+        For each week, print ONLY the week number, the core topic title, and the clickable resource links. 
+        Do NOT include any long descriptions, module explanations, or paragraphs.
+
+        Follow this exact presentation structure:
+        📚 <b>Personalized Roadmap: {topic} ({skill_level})</b>
+
+        <b>Week 1: [Topic Title]</b>
+        🔗 <a href="URL">Resource Title 1</a> (🎥 YouTube)
+        🔗 <a href="URL">Resource Title 2</a> (📖 Article)
+
+        <b>Week 2: [Topic Title]</b>
+        🔗 <a href="URL">Resource Title 1</a> (🎓 Course)
+
+        ...
         
-        At the end of your message, instruct them to reply with "Done" or "/quiz" when they finish studying.
-        
-        Do not add code wrappers or raw data fields unless they are inside a distinct, standard JSON 
-        markdown block at the very end.
-        """
+        👉 Reply with "Done" or "/quiz" when you finish studying!
+
+        At the very end of your response, append a valid JSON block inside ```json and ``` markdown tags holding structural data mapping to the curriculum exactly:
+        ```json
+        {{
+            "week_1": [{{"title": "...", "url": "...", "type": "youtube"}}]
+        }}
+        ```"""
         messages = [HumanMessage(content=system_prompt)]
 
     response = model_with_tools.invoke(messages)
@@ -128,16 +141,32 @@ def resource_finder_agent(state: LearningState):
     resources_per_week = {}
     user_facing_message = final_text
 
-    
     try:
         json_match = re.search(r'\{.*\}', final_text, re.DOTALL)
         if json_match:
             clean_json = json_match.group(0)
             resources_per_week = json.loads(clean_json)
             user_facing_message = final_text.replace(json_match.group(0), "").replace("```json", "").replace("```", "").strip()
+        else:
+            user_facing_message = final_text
     except Exception as e:
         print(f"❌ Database resource format parsing skipped/error: {str(e)}")
         resources_per_week = {f"week_{w['week']}": [] for w in curriculum}
+
+    if not user_facing_message.strip():
+        user_facing_message = f"🧠 <b>Personalized Roadmap: {topic} ({skill_level})</b>\n\n"
+        for week in curriculum:
+            w_num = week.get("week", 1)
+            w_title = week.get("title") or week.get("module_title", "Topic")
+            user_facing_message += f"<b>Week {w_num}: {w_title}</b>\n"
+            
+            week_key = f"week_{w_num}"
+            week_res = resources_per_week.get(week_key, [])
+            for res in week_res:
+                icon = "🎥" if "youtube" in res['type'].lower() else "📖" if "article" in res['type'].lower() else "🎓"
+                user_facing_message += f"🔗 <a href='{res['url']}'>{res['title']}</a> ({icon})\n"
+            user_facing_message += "\n"
+        user_facing_message += "👉 Reply with <b>Done</b> or type <b>/quiz</b> when you finish studying!"
 
     user = get_user_by_telegram_id(telegram_id)
     user_id = user["id"]
