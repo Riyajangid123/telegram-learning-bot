@@ -57,13 +57,13 @@ def skill_assesment_agent(state: LearningState):
         - Do not repeat questions already asked
         If 5 questions have been answered, return ONLY:
 
-        {
+        {{
             "skill_level": "beginner",
             "knowledge_gaps": [
                 "gap1",
                 "gap2"
             ]
-        }
+        }}
     """)
 
 
@@ -81,11 +81,12 @@ def skill_assesment_agent(state: LearningState):
     })
 
     
-    if len(assessment_answers) == 5:
+    if len(assessment_questions) == 5 and len(assessment_answers) == 5:
         response_text = response.content.lower()
 
+        clean = (response.content.replace("```json", "").replace("```", "").strip())
     
-        data = json.loads(response.content)
+        data = json.loads(clean)
         skill_level = data["skill_level"]
         gaps = data["knowledge_gaps"]
 
