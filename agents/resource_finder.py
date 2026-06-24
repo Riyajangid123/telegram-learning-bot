@@ -92,8 +92,9 @@ def resource_finder_agent(state: LearningState):
     model_with_tools = model.bind_tools(tools)
 
     if not messages:
-        system_prompt = f"""You are a learning resource finder.
-        Find resources for each week of this curriculum:
+        system_prompt = f"""You are a personal learning planner and resource finder. 
+        Analyze the user's details and build a custom learning presentation.
+        
         Topic: {topic}
         Skill Level: {skill_level}
         Curriculum: {str(curriculum)}
@@ -103,13 +104,11 @@ def resource_finder_agent(state: LearningState):
         - search_articles: find documentation
         - search_courses: find free courses
 
-        Search for Week 1 first, then Week 2, etc.
+        CRITICAL INSTRUCTION: Your final response MUST have two parts:
         
-        CRITICAL INSTRUCTION: Your final response MUST contain two things:
-        1. A clear, readable, bulleted list of the resource titles and their URLs so the user can 
-        click them directly.
-        2. At the very end of your message, include a valid raw JSON block containing the structural 
-        data like this:
+        PART 1 (User Message): Write a warm, interactive overview message explaining that you evaluated their background and generated a custom roadmap for their skill level ({skill_level}). Mention how many weeks it has and give them instructions. Include the list of resource links clearly.
+        
+        PART 2 (Data Block): At the very end, append a valid JSON block inside ```json and ``` markdown tags holding structural data mapping to the curriculum exactly:
         ```json
         {{
             "week_1": [{{"title": "...", "url": "...", "type": "youtube"}}]
@@ -134,14 +133,24 @@ def resource_finder_agent(state: LearningState):
             clean_json = json_match.group(0)
             resources_per_week = json.loads(clean_json)
             
-    
             user_facing_message = final_text.replace(json_match.group(0), "").replace("```json", "").replace("```", "").strip()
         else:
             user_facing_message = final_text
     except Exception as e:
         print(f"❌ Resource parsing error: {str(e)}")
-        user_facing_message = final_text
+        user_facing_message = ""
         resources_per_week = {f"week_{w['week']}": [] for w in curriculum}
+
+    if not user_facing_message:
+        user_facing_message = f"""
+        🧠 <b>Personalized Curriculum Ready!</b>
+
+        I've evaluated your responses and structured a personalized roadmap for mastering <b>{topic}</b> tailored specifically to a <b>{skill_level}</b> tier.
+
+        📚 We've created a custom {len(curriculum)}-week track for you. 
+
+        Type /startlesson to view your Week 1 learning modules and access your custom reference material link dashboard directly!
+        """
 
     user = get_user_by_telegram_id(telegram_id)
     user_id = user["id"]

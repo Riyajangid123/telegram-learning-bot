@@ -20,7 +20,6 @@ def initialize_user_state(telegram_id: int, username: str):
     """
     Creates the initial state for a new user.
     """
-
     return {
         "messages": [],
         "telegram_id": telegram_id,
@@ -67,7 +66,6 @@ async def telegram_message_handler(
     """
     Handles every Telegram message.
     """
-
     if not update.message:
         return
 
@@ -75,58 +73,88 @@ async def telegram_message_handler(
     username = update.effective_user.username or "Learner"
     incoming_text = update.message.text.strip()
 
-    insert_user(
-    telegram_id,
-    username)
+    if incoming_text == "/start":
+        user_memory_cache[telegram_id] = initialize_user_state(telegram_id, username)
+        insert_user(telegram_id, username)
+        
+        welcome_message = (
+            f"👋 <b>Welcome {username} to your AI Learning Assistant!</b>\n\n"
+            "What topic or skill would you like to master today?\n"
+            "<i>Just type the topic name below to begin your path!</i>"
+        )
+        await update.message.reply_text(welcome_message, parse_mode="HTML")
+        return
+
+    insert_user(telegram_id, username)
 
     print("=" * 60)
     print(f"📩 Message from {telegram_id}: {incoming_text}")
 
-    
     if telegram_id not in user_memory_cache:
         user_memory_cache[telegram_id] = initialize_user_state(
             telegram_id,
             username
         )
 
-    
     state = user_memory_cache[telegram_id]
     state["user_message"] = incoming_text
 
     print("\nINPUT STATE")
     print(state)
 
+    is_finding_resources = state.get("phase") == "assessment_complete" or (
+        len(state.get("assessment_answers", [])) >= len(state.get("assessment_questions", [])) 
+        if state.get("assessment_questions") else False
+    )
+
+    placeholder_msg = None
+    if is_finding_resources:
+        placeholder_msg = await update.message.reply_text(
+            "⏳ <i>Analyzing your answers and researching tailored learning links... This will take a moment.</i>",
+            parse_mode="HTML"
+        )
+
     try:
         updated_state = await learning_graph.ainvoke(state)
-
         state.update(updated_state)
-
         user_memory_cache[telegram_id] = state
 
         print("\nUPDATED STATE")
         print(state)
 
-        await update.message.reply_text(
-        state.get(
-            "response_message",
-            "Something went wrong."
-        ),
-        parse_mode="HTML" 
-    )
+        final_response = state.get("response_message", "Something went wrong.")
+
+        if placeholder_msg:
+            await context.bot.edit_message_text(
+                chat_id=telegram_id,
+                message_id=placeholder_msg.message_id,
+                text=final_response,
+                parse_mode="HTML"
+            )
+        else:
+            await update.message.reply_text(
+                final_response,
+                parse_mode="HTML"
+            )
 
     except Exception as e:
         print(f"❌ Graph Error: {e}")
-
-        await update.message.reply_text(
-            "Something went wrong while processing your request."
-        )
+        error_fallback = "Something went wrong while processing your request."
+        
+        if placeholder_msg:
+            await context.bot.edit_message_text(
+                chat_id=telegram_id,
+                message_id=placeholder_msg.message_id,
+                text=error_fallback
+            )
+        else:
+            await update.message.reply_text(error_fallback)
 
 
 def run_bot():
     """
     Starts Telegram bot.
     """
-
     token = os.getenv("TELEGRAM_BOT_TOKEN")
 
     if not token:
@@ -144,7 +172,6 @@ def run_bot():
             telegram_message_handler,
         )
     )
-
 
     setup_scheduler(user_memory_cache)
 
