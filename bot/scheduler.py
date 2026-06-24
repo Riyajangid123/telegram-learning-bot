@@ -1,5 +1,4 @@
 import os
-import asyncio
 from datetime import date
 from pytz import timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -14,7 +13,9 @@ from database.queries import (
     get_quiz_attempts_by_user,
     insert_daily_log,
     update_lesson_sent,
-    update_quiz_sent
+    update_quiz_sent,
+    lesson_already_sent,
+    quiz_already_sent
 )
 
 load_dotenv()
@@ -51,7 +52,7 @@ async def send_daily_lesson():
 
             if not current_week:
         
-                await get_bot().send_message(
+                await bot.send_message(
                     chat_id=telegram_id,
                     text=(
                         "🎉 Congratulations! You completed your entire curriculum!\n"
@@ -99,6 +100,11 @@ async def send_daily_lesson():
 
            
             today = date.today()
+
+            if lesson_already_sent(user_id, current_week["id"], today):
+                print(f"Lesson already sent to {telegram_id}")
+                continue
+
             insert_daily_log(
                 user_id=user_id,
                 curriculum_id=current_week["id"],
@@ -145,7 +151,7 @@ async def send_evening_quiz():
            
             questions = get_quiz_by_curriculum(current_week["id"])
             if not questions:
-                await get_bot().send_message(
+                await bot.send_message(
                     chat_id=telegram_id,
                     text="No quiz available for today. Keep studying! 📚"
                 )
@@ -172,12 +178,18 @@ async def send_evening_quiz():
                 text="\n".join(message_lines)
             )
 
+            today = date.today()
+
+            if quiz_already_sent(user_id, current_week["id"], today):
+                print(f"Quiz already sent to {telegram_id}")
+                continue
+
           
             update_quiz_sent(
-                user_id=user_id,
-                curriculum_id=current_week["id"],
-                sent_date=date.today()
-                )
+                user_id,
+                current_week["id"],
+                today
+            )
 
            
             if telegram_id not in user_memory_cache:
@@ -187,8 +199,11 @@ async def send_evening_quiz():
                 "quiz_questions": questions,
                 "quiz_total": len(questions),
                 "awaiting_quiz_answers": True,
-                "current_module": current_week["week_number"]
+                "current_module": current_week["week_number"],
+                "next_module": current_week["week_number"]
             })
+            
+            
 
             print(f"✅ Quiz sent to user {telegram_id}")
 
@@ -222,7 +237,11 @@ async def send_weekly_report():
             total_weeks = len(curriculum)
             completed_weeks = len(completed)
 
-            filled = int((completed_weeks / total_weeks) * 10) if total_weeks > 0 else 0
+            filled = (
+                int((completed_weeks / total_weeks) * 10)
+                if total_weeks else 0
+            )
+
             bar = "█" * filled + "░" * (10 - filled)
 
            
@@ -261,8 +280,7 @@ async def send_weekly_report():
 
             await bot.send_message(
                 chat_id=telegram_id,
-                text="\n".join(message_lines),
-                parse_mode="Markdown" 
+                text="\n".join(message_lines)
             )
 
             print(f"✅ Clean report sent to user {telegram_id}")
@@ -284,7 +302,8 @@ def setup_scheduler(memory_cache):
         CronTrigger(hour=9, minute=0,timezone=ist),
         id="daily_lesson",
         name="Send Daily Lesson",
-        replace_existing=True)
+        replace_existing=True,
+        max_instances=1)
     
     scheduler.add_job(
     send_evening_quiz,

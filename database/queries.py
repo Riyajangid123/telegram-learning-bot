@@ -283,3 +283,44 @@ def delete_quiz_by_curriculum(curriculum_id):
     finally:
         cursor.close()
         conn.close()
+
+
+def lesson_already_sent(user_id, curriculum_id, sent_date):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT lesson_sent
+            FROM daily_logs
+            WHERE user_id=%s
+              AND curriculum_id=%s
+              AND sent_date=%s
+        """, (user_id, curriculum_id, sent_date))
+
+        row = cursor.fetchone()
+        return row and row["lesson_sent"]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+def quiz_already_sent(user_id, curriculum_id, sent_date):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT quiz_sent
+            FROM daily_logs
+            WHERE user_id=%s
+              AND curriculum_id=%s
+              AND sent_date=%s
+        """, (user_id, curriculum_id, sent_date))
+
+        row = cursor.fetchone()
+        return row and row["quiz_sent"]
+
+    finally:
+        cursor.close()
+        conn.close()
