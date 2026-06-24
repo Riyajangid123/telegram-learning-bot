@@ -81,6 +81,5 @@ def progress_tracker_agent(state: LearningState):
         "completed_modules": [w["week_number"] for w in completed],
         "progress_report": response_message,
         "current_module": next_module,
-        "next_module": next_module,
-        "response_message": response_message
+        "response_message":response_message
     }

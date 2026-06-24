@@ -107,11 +107,12 @@ async def telegram_message_handler(
         print(state)
 
         await update.message.reply_text(
-            state.get(
-                "response_message",
-                "Something went wrong."
-            )
-        )
+        state.get(
+            "response_message",
+            "Something went wrong."
+        ),
+        parse_mode="HTML" 
+    )
 
     except Exception as e:
         print(f"❌ Graph Error: {e}")

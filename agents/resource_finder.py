@@ -5,6 +5,7 @@ from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from duckduckgo_search import DDGS
 import json
+import re
 import os
 import time
 from graph.state import LearningState
@@ -73,6 +74,8 @@ tools = [search_articles, youtube_search, search_courses]
 tool_node = ToolNode(tools) 
 
 
+import re
+
 def resource_finder_agent(state: LearningState):
     telegram_id = state["telegram_id"]
     curriculum = state.get("curriculum", [])
@@ -101,39 +104,44 @@ def resource_finder_agent(state: LearningState):
         - search_courses: find free courses
 
         Search for Week 1 first, then Week 2, etc.
-        After all searches, return resources as JSON:
+        
+        CRITICAL INSTRUCTION: Your final response MUST contain two things:
+        1. A clear, readable, bulleted list of the resource titles and their URLs so the user can 
+        click them directly.
+        2. At the very end of your message, include a valid raw JSON block containing the structural 
+        data like this:
+        ```json
         {{
-            "week_1": [
-                {{"title": "...", "url": "...", "type": "youtube"}},
-                {{"title": "...", "url": "...", "type": "article"}}
-            ],
-            "week_2": [...]
-        }}"""
+            "week_1": [{{"title": "...", "url": "...", "type": "youtube"}}]
+        }}
+        ```"""
         messages = [HumanMessage(content=system_prompt)]
 
-    
     response = model_with_tools.invoke(messages)
-
 
     if response.tool_calls:
         print(f"🔧 Tool called: {[t['name'] for t in response.tool_calls]}")
         return {"messages": messages + [response]}
 
-
     print("✅ Resource finder complete")
     final_text = response.content
 
 
+    resources_per_week = {}
     try:
-        clean = final_text.strip()
-        clean = clean.replace("```json", "").replace("```", "").strip()
-        resources_per_week = json.loads(clean)
+        json_match = re.search(r'\{.*\}', final_text, re.DOTALL)
+        if json_match:
+            clean_json = json_match.group(0)
+            resources_per_week = json.loads(clean_json)
+            
+    
+            user_facing_message = final_text.replace(json_match.group(0), "").replace("```json", "").replace("```", "").strip()
+        else:
+            user_facing_message = final_text
     except Exception as e:
         print(f"❌ Resource parsing error: {str(e)}")
-        resources_per_week = {
-            f"week_{w['week']}": [] for w in curriculum
-        }
-
+        user_facing_message = final_text
+        resources_per_week = {f"week_{w['week']}": [] for w in curriculum}
 
     user = get_user_by_telegram_id(telegram_id)
     user_id = user["id"]
@@ -143,25 +151,11 @@ def resource_finder_agent(state: LearningState):
         week_key = f"week_{week['week_number']}"
         resources = resources_per_week.get(week_key, [])
         if resources:
-            insert_resources(
-                curriculum_id=week["id"],
-                resources=resources
-            )
+            insert_resources(curriculum_id=week["id"], resources=resources)
 
-    message_lines = [f"🔍 Resources for {topic}:\n"]
-    for week in curriculum:
-        week_key = f"week_{week['week']}"
-        week_resources = resources_per_week.get(week_key, [])
-        message_lines.append(f"📅 Week {week['week']}: {week['title']}")
-        for r in week_resources:
-            icon = "🎥" if r["type"] == "youtube" else "📖" if r["type"] == "article" else "🎓"
-            message_lines.append(f"  {icon} {r['title']}: {r['url']}")
-        message_lines.append("")
-
-    response_message = "\n".join(message_lines)
 
     return {
         "resources": resources_per_week,
-        "response_message": response_message,
+        "response_message": user_facing_message,
         "messages": messages + [response]
     }

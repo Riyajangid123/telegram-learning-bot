@@ -27,6 +27,7 @@ def router_node(state: LearningState):
             
     return {"user_message": user_message}
 
+
 def welcome_node(state):
     return {
         "phase": "awaiting_topic",
