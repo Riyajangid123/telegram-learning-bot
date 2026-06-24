@@ -102,6 +102,7 @@ def curriculum_planner_agent(state:LearningState):
     response_message = "\n".join(message_lines)
 
     return {
-        "curriculum": curriculum,
-        "response_message": response_message
+    "curriculum": curriculum,
+    "phase": "learning",
+    "response_message": response_message
     }

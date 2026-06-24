@@ -27,48 +27,39 @@ def router_node(state: LearningState):
             
     return {"user_message": user_message}
 
-def welcome_node(state: LearningState):
-    print("WELCOME NODE EXECUTED")
+def welcome_node(state):
     return {
-        "awaiting_topic": True,
+        "phase": "awaiting_topic",
         "response_message": """
-    👋 Welcome to AI Learning Bot!
+        👋 Welcome to AI Learning Bot!
 
-    I'm your personal AI learning assistant.
+        I'm your personal AI learning assistant.
 
-    🚀 Here's how I can help you:
+        🚀 Here's how I can help you:
 
-    ✅ Assess your current skill level
-    ✅ Create a personalized learning roadmap
-    ✅ Recommend courses, videos and articles
-    ✅ Generate quizzes to test your knowledge
-    ✅ Track your learning progress
-    ✅ Send daily lessons and reminders
+        ✅ Assess your current skill level
+        ✅ Create a personalized learning roadmap
+        ✅ Recommend resources
+        ✅ Generate quizzes
+        ✅ Track progress
 
-    📚 What would you like to learn today?
+        📚 What would you like to learn today?
 
-    Examples:
-    • Machine Learning
-    • Python
-    • Data Structures & Algorithms
-    • Creative writing
-    """
-        }
+        Examples:
+        • Python
+        • Machine Learning
+        • SQL
+        • Data Structures
+        """
+    }
 
 
-def route_entry(state: LearningState) -> str:
+def route_entry(state):
 
     user_message = state.get("user_message", "").strip().lower()
 
-    print("ROUTER MESSAGE:", user_message)
-    print("AWAITING_TOPIC:", state.get("awaiting_topic"))
-    print("TOPIC:", state.get("topic"))
-
     if user_message == "/start":
         return "welcome"
-
-    if state.get("awaiting_topic", False):
-        return "skill_assessment"
 
     if user_message == "/quiz":
         return "quiz_generation"
@@ -76,15 +67,25 @@ def route_entry(state: LearningState) -> str:
     if user_message == "/progress":
         return "track_progress"
 
-    return "skill_assessment"
+    phase = state.get("phase")
 
+    if phase == "awaiting_topic":
+        return "skill_assessment"
 
-def route_assessment(state: LearningState) -> str:
-    """Keeps the user in assessment until 5 answers are given, then advances."""
-    answers = state.get("assessment_answers", [])
-    if len(answers) >= 5:
+    if phase == "assessment":
+        return "skill_assessment"
+
+    if phase == "learning":
+        return "resource_finder"
+
+    return "welcome"
+
+def route_assessment(state):
+
+    if state.get("phase") == "learning":
         return "curriculum_planner"
-    return END  
+
+    return END
 
 def build_graph():
     workflow = StateGraph(LearningState)

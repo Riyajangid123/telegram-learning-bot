@@ -34,3 +34,5 @@ class LearningState(TypedDict):
     progress_report: str        
     next_module: str        
     response_message: Annotated[str, keep_last]
+
+    phase: str

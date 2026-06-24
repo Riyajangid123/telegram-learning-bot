@@ -129,10 +129,27 @@ def insert_quiz_questions(curriculum_id, questions: list):
     try:
         for q in questions:
             cursor.execute("""
-                INSERT INTO quizzes (curriculum_id, question, option_a, option_b, option_c, option_d, correct_ans)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (curriculum_id, q["question"], q["options"]["A"], q["options"]["B"], q["options"]["C"], q["options"]["D"], q["correct"]))
-        conn.commit()
+            INSERT INTO quizzes(
+                curriculum_id,
+                question,
+                option_a,
+                option_b,
+                option_c,
+                option_d,
+                correct_ans,
+                explanation
+            )
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            """,(
+                curriculum_id,
+                q["question"],
+                q["options"]["A"],
+                q["options"]["B"],
+                q["options"]["C"],
+                q["options"]["D"],
+                q["correct"],
+                q["explanation"]
+            ))
     except Exception as e:
         print(f"Insert quiz error: {str(e)}")
     finally:
@@ -248,6 +265,21 @@ def update_quiz_sent(user_id, curriculum_id, sent_date):
 
         conn.commit()
 
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def delete_quiz_by_curriculum(curriculum_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            DELETE FROM quizzes
+            WHERE curriculum_id=%s
+        """,(curriculum_id,))
+        conn.commit()
     finally:
         cursor.close()
         conn.close()

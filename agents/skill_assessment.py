@@ -9,18 +9,39 @@ import os
 load_dotenv()
 
 def skill_assesment_agent(state: LearningState):
-    if state.get("awaiting_topic"):
-        topic = state["user_message"].lower()
+    greetings = {
+    "hi",
+    "hello",
+    "hey",
+    "hii",
+    "good morning",
+    "good evening",
+    "good afternoon"
+}
+
+    if state.get("phase") == "awaiting_topic":
+
+        message = state["user_message"].strip().lower()
+
+        if message in greetings:
+            return {
+                "response_message":
+                    "👋 Hello!\n\nWhat topic would you like to learn?\n\nExamples:\n• Python\n• Machine Learning\n• SQL",
+                "phase": "awaiting_topic"
+            }
+
+        topic = message
+
         first_question = f"What do you already know about {topic}?"
 
         return {
             "topic": topic,
-            "awaiting_topic": False,
+            "phase": "assessment",
             "assessment_questions": [first_question],
             "assessment_answers": [],
             "response_message":
                 f"Great! Let's learn {topic}. 🚀\n\n"
-                f"I'll first assess your current knowledge.\n\n"
+                f"I'll first assess your knowledge.\n\n"
                 f"Question 1:\n{first_question}"
         }
 
@@ -102,6 +123,7 @@ def skill_assesment_agent(state: LearningState):
             "knowledge_gaps": gaps,
             "assessment_answers": assessment_answers,
             "assessment_questions": assessment_questions,
+            "phase": "learning",
             "response_message": response.content
         }
 

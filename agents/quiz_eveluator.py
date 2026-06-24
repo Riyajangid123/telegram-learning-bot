@@ -32,6 +32,7 @@ def quiz_evaluator_agent(state:LearningState):
 
     return {
         "quiz_score": score,
+        "quiz_total": len(quiz_questions),
         "awaiting_quiz_answers": False,
         "response_message": f"🏆 Score: {score}/{len(quiz_questions)}"
     }

@@ -32,29 +32,20 @@ def quiz_generation_agent(state: LearningState):
     user_id = user["id"]
     db_curriculum = get_curriculum_by_user(user_id)
 
-    if not curriculum and db_curriculum:
-        curriculum = [
-            {
-                "week": w["week_number"],
-                "title": w["tiitle"],
-                "description": w["description"]
-            }
-            for w in db_curriculum
-        ]
+    db_current_week = next(
+        (
+            w for w in db_curriculum
+            if w["week_number"] == current_module
+        ),
+        None)
 
-    if not curriculum:
+    if not db_current_week:
         return {
-            "response_message":
-            "No curriculum found. Complete assessment first."
+            "response_message":"Current week not found."
         }
 
-    current_week = next(
-        (w for w in curriculum if w["week"] == current_module),
-        curriculum[0]
-    )
+    curriculum_id = db_current_week["id"]
 
-    print("TOPIC:", topic)
-    print("CURRENT WEEK:", current_week["title"])
 
     prompt = ChatPromptTemplate.from_template("""
         You are a quiz generator expert.
@@ -93,54 +84,88 @@ def quiz_generation_agent(state: LearningState):
 
     chain = prompt | model
 
+    existing_questions = get_quiz_by_curriculum(curriculum_id)
+
+    if existing_questions:
+
+        message_lines = [
+            f"🧠 Quiz Time! Week {current_module}: {db_current_week['module_title']}\n",
+            "Answer all questions.\n"
+        ]
+
+        for i, q in enumerate(existing_questions, start=1):
+
+            message_lines.append(f"Q{i}. {q['question']}")
+            message_lines.append(f"A) {q['option_a']}")
+            message_lines.append(f"B) {q['option_b']}")
+            message_lines.append(f"C) {q['option_c']}")
+            message_lines.append(f"D) {q['option_d']}\n")
+
+        message_lines.append(
+            "Reply like:\nA B C D A"
+        )
+
+        return {
+            "quiz_questions": existing_questions,
+            "quiz_total": len(existing_questions),
+            "quiz_score": 0,
+            "awaiting_quiz_answers": True,
+            "response_message":"\n".join(message_lines)
+        }
+
     response = chain.invoke({
         "topic": topic,
-        "week_title": current_week["title"],  
+        "week_title": db_current_week["title"],  
         "skill_level": skill_level
     })
 
-    try:
-        clean = response.content.strip()
-        clean = clean.replace("```json", "").replace("```", "").strip()
-        data = json.loads(clean)
-        quiz_questions = data["questions"]
+    clean = (
+    response.content
+    .replace("```json","")
+    .replace("```","")
+    .strip()
+    )
 
-        seen_questions = set()
-        unique_questions = []
-        
-        for q in quiz_questions:
-            question_text = q["question"].lower().strip()
-            if question_text not in seen_questions:
-                seen_questions.add(question_text)
-                unique_questions.append(q)
-            
-        quiz_questions = unique_questions[:5] 
-        print(f"✅ {len(quiz_questions)} unique questions generated")
-        insert_quiz_questions(curriculum["id"],quiz_questions)
-        
-    except Exception as e:
-        print(f"❌ Quiz parsing error: {str(e)}")
-        quiz_questions = []
+    data = json.loads(clean)
+
+    unique_questions = []
+    seen = set()
+
+    for q in quiz_questions:
+
+        key = q["question"].strip().lower()
+
+        if key not in seen:
+            seen.add(key)
+            unique_questions.append(q)
+
+        quiz_questions = unique_questions
+
+    if len(quiz_questions) != 5:
+
+        return {
+            "response_message":
+            "Unable to generate a complete quiz. Please try again."
+        }
+    
+    insert_quiz_questions(
+    curriculum_id,
+    quiz_questions
+    )
 
     message_lines = [
-    f"🧠 Quiz Time! Week {current_module}: {current_week['title']}\n",
-    "Answer all 5 questions!\n"
+    f"🧠 Quiz Time! Week {current_module}: {db_current_week['module_title']}\n",
+    "Answer all questions.\n"
     ]
 
     for q in quiz_questions:
-        message_lines.append(f"Q{q['id']}: {q['question']}")
+
+        message_lines.append(f"Q{q['id']}. {q['question']}")
         message_lines.append(f"A) {q['options']['A']}")
         message_lines.append(f"B) {q['options']['B']}")
         message_lines.append(f"C) {q['options']['C']}")
         message_lines.append(f"D) {q['options']['D']}\n")
 
-    response_message = "\n".join(message_lines)
-    response_message += "\nReply with your answers like: A B C D A"
-
-    return {
-    "quiz_questions": quiz_questions,
-    "quiz_total": len(quiz_questions),
-    "quiz_score": 0,
-    "awaiting_quiz_answers": True,
-    "response_message": response_message
-    }
+    message_lines.append(
+        "Reply like:\nA B C D A"
+    )
