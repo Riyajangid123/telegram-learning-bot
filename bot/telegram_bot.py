@@ -9,6 +9,7 @@ from telegram.ext import (
 
 from graph.workflow import build_graph
 from bot.scheduler import setup_scheduler
+from database.queries import insert_user
 
 learning_graph = build_graph()
 
@@ -73,6 +74,10 @@ async def telegram_message_handler(
     telegram_id = update.effective_chat.id
     username = update.effective_user.username or "Learner"
     incoming_text = update.message.text.strip()
+
+    insert_user(
+    telegram_id,
+    username)
 
     print("=" * 60)
     print(f"📩 Message from {telegram_id}: {incoming_text}")

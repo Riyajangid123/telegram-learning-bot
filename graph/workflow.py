@@ -7,7 +7,7 @@ from agents.quiz_generation import quiz_generation_agent
 from agents.progress_tracker import progress_tracker_agent
 from langgraph.prebuilt import tools_condition
 from graph.state import LearningState
-from database.queries import get_user_by_telegram_id, get_curriculum_by_user
+from database.queries import get_user_by_telegram_id, get_curriculum_by_user,insert_user
 
 def router_node(state: LearningState):
     """Determines where to route the incoming Telegram message."""

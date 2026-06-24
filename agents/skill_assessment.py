@@ -49,8 +49,8 @@ def skill_assesment_agent(state: LearningState):
     topic = state["topic"]
     user_message = state["user_message"]
 
-    assessment_questions = state.get("assessment_questions", [])
-    assessment_answers = state.get("assessment_answers", [])
+    assessment_questions = list(state.get("assessment_questions", []))
+    assessment_answers = list(state.get("assessment_answers", []))
 
     model = ChatGroq(
         model="llama-3.3-70b-versatile",
@@ -87,27 +87,29 @@ def skill_assesment_agent(state: LearningState):
         }}
     """)
 
+    chain=prompt|model
 
-
-    
     if user_message and user_message != topic:
         assessment_answers.append(user_message)
 
-    chain = prompt | model
-
-    response = chain.invoke({
-        "topic": topic,
-        "questions": assessment_questions,
-        "answers": assessment_answers
-    })
-
-    
     if len(assessment_questions) == 5 and len(assessment_answers) == 5:
-        response_text = response.content.lower()
 
-        clean = (response.content.replace("```json", "").replace("```", "").strip())
+        response = chain.invoke({
+            "topic": topic,
+            "questions": assessment_questions,
+            "answers": assessment_answers
+        })
+
+        clean = response.content.replace("```json", "").replace("```", "").strip()
+
+        try:
+            data = json.loads(clean)
+        except json.JSONDecodeError:
+            return {
+                "response_message": "I couldn't evaluate your answers. Please try again."
+            }
+
     
-        data = json.loads(clean)
         skill_level = data["skill_level"]
         gaps = data["knowledge_gaps"]
 
@@ -133,6 +135,7 @@ def skill_assesment_agent(state: LearningState):
         return {
             "skill_level": "",
             "knowledge_gaps": [],
+            "phase": "assessment",
             "assessment_answers": assessment_answers,
             "assessment_questions": assessment_questions,
             "response_message": response.content
