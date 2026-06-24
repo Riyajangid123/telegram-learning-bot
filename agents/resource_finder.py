@@ -1,15 +1,16 @@
+import os
+import re
+import json
+import time
+from duckduckgo_search import DDGS
+from dotenv import load_dotenv
+
 from database.queries import insert_resources, get_curriculum_by_user, get_user_by_telegram_id
 from langchain_groq import ChatGroq
 from langgraph.prebuilt import ToolNode
 from langchain_core.tools import tool
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from duckduckgo_search import DDGS
-import json
-import re
-import os
-import time
+from langchain_core.messages import HumanMessage
 from graph.state import LearningState
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -74,8 +75,6 @@ tools = [search_articles, youtube_search, search_courses]
 tool_node = ToolNode(tools) 
 
 
-import re
-
 def resource_finder_agent(state: LearningState):
     telegram_id = state["telegram_id"]
     curriculum = state.get("curriculum", [])
@@ -99,21 +98,22 @@ def resource_finder_agent(state: LearningState):
         Skill Level: {skill_level}
         Curriculum: {str(curriculum)}
 
-        Use the available tools to search for:
+        Use the available tools to search for resources across the weeks.
         - youtube_search: find tutorial videos
         - search_articles: find documentation
         - search_courses: find free courses
 
-        CRITICAL INSTRUCTION: Your final response MUST have two parts:
+        CRITICAL INSTRUCTION: Present your final response directly as a warm, interactive overview 
+        message explaining that you evaluated their background and generated a custom roadmap for their 
+        skill level ({skill_level}).
+        Organize it by weeks, and directly show the clickable resource titles and URLs fetched by your 
+        tools inside the text presentation. Do not wrap them in raw markdown tables or complex structures.
         
-        PART 1 (User Message): Write a warm, interactive overview message explaining that you evaluated their background and generated a custom roadmap for their skill level ({skill_level}). Mention how many weeks it has and give them instructions. Include the list of resource links clearly.
+        At the end of your message, instruct them to reply with "Done" or "/quiz" when they finish studying.
         
-        PART 2 (Data Block): At the very end, append a valid JSON block inside ```json and ``` markdown tags holding structural data mapping to the curriculum exactly:
-        ```json
-        {{
-            "week_1": [{{"title": "...", "url": "...", "type": "youtube"}}]
-        }}
-        ```"""
+        Do not add code wrappers or raw data fields unless they are inside a distinct, standard JSON 
+        markdown block at the very end.
+        """
         messages = [HumanMessage(content=system_prompt)]
 
     response = model_with_tools.invoke(messages)
@@ -125,32 +125,19 @@ def resource_finder_agent(state: LearningState):
     print("✅ Resource finder complete")
     final_text = response.content
 
-
     resources_per_week = {}
+    user_facing_message = final_text
+
+    
     try:
         json_match = re.search(r'\{.*\}', final_text, re.DOTALL)
         if json_match:
             clean_json = json_match.group(0)
             resources_per_week = json.loads(clean_json)
-            
             user_facing_message = final_text.replace(json_match.group(0), "").replace("```json", "").replace("```", "").strip()
-        else:
-            user_facing_message = final_text
     except Exception as e:
-        print(f"❌ Resource parsing error: {str(e)}")
-        user_facing_message = ""
+        print(f"❌ Database resource format parsing skipped/error: {str(e)}")
         resources_per_week = {f"week_{w['week']}": [] for w in curriculum}
-
-    if not user_facing_message:
-        user_facing_message = f"""
-        🧠 <b>Personalized Curriculum Ready!</b>
-
-        I've evaluated your responses and structured a personalized roadmap for mastering <b>{topic}</b> tailored specifically to a <b>{skill_level}</b> tier.
-
-        📚 We've created a custom {len(curriculum)}-week track for you. 
-
-        Type /startlesson to view your Week 1 learning modules and access your custom reference material link dashboard directly!
-        """
 
     user = get_user_by_telegram_id(telegram_id)
     user_id = user["id"]
@@ -161,7 +148,6 @@ def resource_finder_agent(state: LearningState):
         resources = resources_per_week.get(week_key, [])
         if resources:
             insert_resources(curriculum_id=week["id"], resources=resources)
-
 
     return {
         "resources": resources_per_week,

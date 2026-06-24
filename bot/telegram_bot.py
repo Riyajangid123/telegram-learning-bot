@@ -78,10 +78,22 @@ async def telegram_message_handler(
         insert_user(telegram_id, username)
         
         welcome_message = (
-            f"👋 <b>Welcome {username} to your AI Learning Assistant!</b>\n\n"
-            "What topic or skill would you like to master today?\n"
-            "<i>Just type the topic name below to begin your path!</i>"
+            "👋 <b>Welcome to AI Learning Bot!</b>\n\n"
+            "I'm your personal AI learning assistant.\n\n"
+            "🚀 <b>Here's how I can help you:</b>\n"
+            "✅ Assess your current skill level\n"
+            "✅ Create a personalized learning roadmap\n"
+            "✅ Recommend resources\n"
+            "✅ Generate quizzes\n"
+            "✅ Track progress\n\n"
+            "📚 <b>What would you like to learn today?</b>\n\n"
+            "Examples:\n"
+            "• Python\n"
+            "• Machine Learning\n"
+            "• SQL\n"
+            "• Data Structures"
         )
+
         await update.message.reply_text(welcome_message, parse_mode="HTML")
         return
 
@@ -102,53 +114,53 @@ async def telegram_message_handler(
     print("\nINPUT STATE")
     print(state)
 
-    is_finding_resources = state.get("phase") == "assessment_complete" or (
-        len(state.get("assessment_answers", [])) >= len(state.get("assessment_questions", [])) 
+    is_completing_assessment = state.get("phase") == "assessment" and (
+        len(state.get("assessment_answers", [])) + 1 >= len(state.get("assessment_questions", []))
         if state.get("assessment_questions") else False
     )
-
-    placeholder_msg = None
-    if is_finding_resources:
-        placeholder_msg = await update.message.reply_text(
-            "⏳ <i>Analyzing your answers and researching tailored learning links... This will take a moment.</i>",
-            parse_mode="HTML"
-        )
 
     try:
         updated_state = await learning_graph.ainvoke(state)
         state.update(updated_state)
         user_memory_cache[telegram_id] = state
 
-        print("\nUPDATED STATE")
+        print("\nUPDATED STATE (STEP 1)")
         print(state)
 
         final_response = state.get("response_message", "Something went wrong.")
 
-        if placeholder_msg:
+        placeholder_msg = await update.message.reply_text(
+            final_response,
+            parse_mode="HTML"
+        )
+
+        if is_completing_assessment or state.get("phase") == "learning" and not state.get("resources"):
+            print("🚀 Launching background DuckDuckGo Resource Finder...")
+            
+            
+            await context.bot.send_chat_action(chat_id=telegram_id, action="typing")
+            
+           
+            updated_resource_state = await learning_graph.ainvoke(state)
+            state.update(updated_resource_state)
+            user_memory_cache[telegram_id] = state
+            
+            print("\nUPDATED STATE (STEP 2 - Resource Search Completed)")
+            print(state)
+            
+            final_resource_response = state.get("response_message", "Something went wrong.")
+            
             await context.bot.edit_message_text(
                 chat_id=telegram_id,
                 message_id=placeholder_msg.message_id,
-                text=final_response,
-                parse_mode="HTML"
-            )
-        else:
-            await update.message.reply_text(
-                final_response,
+                text=final_resource_response,
                 parse_mode="HTML"
             )
 
     except Exception as e:
         print(f"❌ Graph Error: {e}")
         error_fallback = "Something went wrong while processing your request."
-        
-        if placeholder_msg:
-            await context.bot.edit_message_text(
-                chat_id=telegram_id,
-                message_id=placeholder_msg.message_id,
-                text=error_fallback
-            )
-        else:
-            await update.message.reply_text(error_fallback)
+        await update.message.reply_text(error_fallback)
 
 
 def run_bot():
