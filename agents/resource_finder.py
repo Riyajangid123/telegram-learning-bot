@@ -84,102 +84,115 @@ def resource_finder_agent(state: LearningState):
 
     model = ChatGroq(
         model="llama-3.1-8b-instant",
-        temperature=0.3,
+        temperature=0.1,
         api_key=os.getenv("GROQ_API_KEY")
     )
 
     model_with_tools = model.bind_tools(tools)
 
+
     if not messages:
-        system_prompt = f"""You are a personal learning planner and resource finder. 
-        Analyze the user's details and build a custom learning presentation.
-        
+        system_prompt = f"""You are a dedicated resource retrieval system.
+        Your task is to call the provided search tools to find educational materials for the following topic:
         Topic: {topic}
         Skill Level: {skill_level}
-        Curriculum: {str(curriculum)}
 
-        Use the available tools to search for resources across the weeks.
-        - youtube_search: find tutorial videos
-        - search_articles: find documentation
-        - search_courses: find free courses
-
-        CRITICAL INSTRUCTION: Your response must be clean, ultra-compact, and minimal. 
-        For each week, print ONLY the week number, the core topic title, and the clickable resource links. 
-        Do NOT include any long descriptions, module explanations, or paragraphs.
-
-        Follow this exact presentation structure:
-        📚 <b>Personalized Roadmap: {topic} ({skill_level})</b>
-
-        <b>Week 1: [Topic Title]</b>
-        🔗 <a href="URL">Resource Title 1</a> (🎥 YouTube)
-        🔗 <a href="URL">Resource Title 2</a> (📖 Article)
-
-        <b>Week 2: [Topic Title]</b>
-        🔗 <a href="URL">Resource Title 1</a> (🎓 Course)
-
-        ...
-        
-        👉 Reply with "Done" or "/quiz" when you finish studying!
-
-        At the very end of your response, append a valid JSON block inside ```json and ``` markdown tags holding structural data mapping to the curriculum exactly:
-        ```json
-        {{
-            "week_1": [{{"title": "...", "url": "...", "type": "youtube"}}]
-        }}
-        ```"""
+        CRITICAL DIRECTION: Select and invoke the required tools immediately. Do not write conversational greetings, explanations, or roadmaps yet. Only trigger the tools.
+        """
         messages = [HumanMessage(content=system_prompt)]
-
-    response = model_with_tools.invoke(messages)
-
-    if response.tool_calls:
-        print(f"🔧 Tool called: {[t['name'] for t in response.tool_calls]}")
+        response = model_with_tools.invoke(messages)
+        print(f"🔧 Initial execution: triggering tool generation calls.")
         return {"messages": messages + [response]}
 
-    print("✅ Resource finder complete")
-    final_text = response.content
+    last_message = messages[-1]
+    
 
+    if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+        print(f"🔧 Retrying tool node routing for: {[t['name'] for t in last_message.tool_calls]}")
+        return {"messages": messages}
+
+    print("📝 Tool results detected. Assembling minimal, ultra-compact text layout...")
+    
+    final_prompt = f"""You are a personal learning planner. Review the search results provided in the message history.
+    Construct a clean, ultra-compact, and minimal weekly curriculum summary using real URLs extracted from the search results.
+
+    Follow this presentation structure exactly:
+    📚 <b>Personalized Roadmap: {topic} ({skill_level})</b>
+
+    <b>Week 1: [Topic Title]</b>
+    🔗 <a href="REAL_URL_1">Resource Title 1</a> (🎥 YouTube)
+    🔗 <a href="REAL_URL_2">Resource Title 2</a> (📖 Article)
+
+    ... continue for all curriculum weeks ...
+    
+    👉 Reply with "Done" or "/quiz" when you finish studying!
+
+    At the very end of your response, append a valid JSON block inside ```json and ``` markdown tags holding structural data mapping to the curriculum exactly:
+    ```json
+    {{
+        "week_1": [
+            {{"title": "Resource Title 1", "url": "REAL_URL_1", "type": "youtube"}},
+            {{"title": "Resource Title 2", "url": "REAL_URL_2", "type": "article"}}
+        ]
+    }}
+    ```
+    
+    CRITICAL RULES:
+    1. Only use real links provided by the tools. Never hallucinate placeholding links like "https://www.youtube.com/watch?v=...".
+    2. Do not include any paragraph text, introductory chat fluff, or detailed explanations. Keep it ultra-compact to avoid length errors.
+    """
+    
+    
+    assembly_messages = messages + [HumanMessage(content=final_prompt)]
+    final_generation = model.invoke(assembly_messages)
+
+    final_text = final_generation.content
     resources_per_week = {}
     user_facing_message = final_text
 
+   
     try:
         json_match = re.search(r'\{.*\}', final_text, re.DOTALL)
         if json_match:
             clean_json = json_match.group(0)
             resources_per_week = json.loads(clean_json)
             user_facing_message = final_text.replace(json_match.group(0), "").replace("```json", "").replace("```", "").strip()
-        else:
-            user_facing_message = final_text
     except Exception as e:
         print(f"❌ Database resource format parsing skipped/error: {str(e)}")
-        resources_per_week = {f"week_{w['week']}": [] for w in curriculum}
+        resources_per_week = {f"week_{w['week_number'] if 'week_number' in w else w.get('week', 1)}": [] for w in curriculum}
 
     if not user_facing_message.strip():
         user_facing_message = f"🧠 <b>Personalized Roadmap: {topic} ({skill_level})</b>\n\n"
         for week in curriculum:
-            w_num = week.get("week", 1)
-            w_title = week.get("title") or week.get("module_title", "Topic")
+            w_num = week.get("week_number") or week.get("week", 1)
+            w_title = week.get("title") or week.get("module_title", "Topic Module")
             user_facing_message += f"<b>Week {w_num}: {w_title}</b>\n"
             
             week_key = f"week_{w_num}"
             week_res = resources_per_week.get(week_key, [])
             for res in week_res:
-                icon = "🎥" if "youtube" in res['type'].lower() else "📖" if "article" in res['type'].lower() else "🎓"
-                user_facing_message += f"🔗 <a href='{res['url']}'>{res['title']}</a> ({icon})\n"
+                r_type = str(res.get('type', 'youtube')).lower()
+                icon = "🎥" if "youtube" in r_type else "📖" if "article" in r_type else "🎓"
+                user_facing_message += f"🔗 <a href='{res.get('url', '#')}'>{res.get('title', 'Resource Link')}</a> ({icon})\n"
             user_facing_message += "\n"
         user_facing_message += "👉 Reply with <b>Done</b> or type <b>/quiz</b> when you finish studying!"
 
-    user = get_user_by_telegram_id(telegram_id)
-    user_id = user["id"]
-    db_curriculum = get_curriculum_by_user(user_id)
+    
+    try:
+        user = get_user_by_telegram_id(telegram_id)
+        user_id = user["id"]
+        db_curriculum = get_curriculum_by_user(user_id)
 
-    for week in db_curriculum:
-        week_key = f"week_{week['week_number']}"
-        resources = resources_per_week.get(week_key, [])
-        if resources:
-            insert_resources(curriculum_id=week["id"], resources=resources)
+        for week in db_curriculum:
+            week_key = f"week_{week['week_number']}"
+            resources = resources_per_week.get(week_key, [])
+            if resources:
+                insert_resources(curriculum_id=week["id"], resources=resources)
+    except Exception as db_err:
+        print(f"⚠️ Database write warning: {db_err}")
 
     return {
         "resources": resources_per_week,
         "response_message": user_facing_message,
-        "messages": messages + [response]
+        "messages": messages + [final_generation]
     }
