@@ -1,13 +1,13 @@
 from typing import TypedDict, Annotated
 from langgraph.graph import StateGraph, START, END
-from agents.skill_assessment import skill_assesment_agent
+from agents.skill_assessment import skill_assessment_agent
 from agents.curriculum_planner import curriculum_planner_agent
 from agents.resource_finder import resource_finder_agent, tool_node  
 from agents.quiz_generation import quiz_generation_agent
 from agents.progress_tracker import progress_tracker_agent
 from langgraph.prebuilt import tools_condition
 from graph.state import LearningState
-from database.queries import get_user_by_telegram_id, get_curriculum_by_user,insert_user
+from database.queries import get_user_by_telegram_id, get_curriculum_by_user
 
 def router_node(state: LearningState):
     """Determines where to route the incoming Telegram message."""
@@ -28,7 +28,7 @@ def router_node(state: LearningState):
     return {"user_message": user_message}
 
 
-def welcome_node(state):
+def welcome_node(state:LearningState):
     return {
         "phase": "awaiting_topic",
         "response_message": """
@@ -94,7 +94,7 @@ def build_graph():
 
     workflow.add_node("router", router_node)
     workflow.add_node("welcome", welcome_node)
-    workflow.add_node("skill_assessment", skill_assesment_agent)
+    workflow.add_node("skill_assessment", skill_assessment_agent)
     workflow.add_node("curriculum_planner", curriculum_planner_agent)
     workflow.add_node("resource_finder", resource_finder_agent)
     workflow.add_node("tools", tool_node)          
