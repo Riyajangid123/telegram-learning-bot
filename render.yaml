@@ -5,6 +5,7 @@ services:
     plan: free
     scaling:                  
       maxInstances: 1        
+    deployWithWithOverlaps: false
     envVars:
       - key: DATABASE_URL
         sync: false

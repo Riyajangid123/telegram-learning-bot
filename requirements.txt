@@ -34,4 +34,4 @@ pydantic[email]
 uuid
 python-multipart
 
-python-telegram-bot[webhooks]==21.3
+python-telegram-bot[webhooks]
