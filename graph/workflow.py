@@ -28,7 +28,7 @@ def router_node(state: LearningState):
     return {"user_message": user_message}
 
 
-def welcome_node(state:LearningState):
+def welcome_node(state: LearningState):
     return {
         "phase": "awaiting_topic",
         "response_message": """
@@ -56,42 +56,37 @@ def welcome_node(state:LearningState):
 
 
 def route_entry(state):
-
     user_message = state.get("user_message", "").strip().lower()
 
     if user_message == "/start":
         return "welcome"
-
     if user_message == "/quiz":
         return "quiz_generation"
-
     if user_message == "/progress":
         return "track_progress"
 
     phase = state.get("phase")
 
-    if phase == "awaiting_topic":
+    if phase == "awaiting_topic" or phase == "assessment":
         return "skill_assessment"
-
-    if phase == "assessment":
-        return "skill_assessment"
-
+        
     if phase == "learning":
-        return "resource_finder"
+        return "curriculum_planner"
 
     return "welcome"
 
+
 def route_assessment(state):
-
-    if state.get("phase") == "learning":
+    phase = state.get("phase")
+    if phase == "learning" or phase == "assessment_complete":
         return "curriculum_planner"
-
     return END
+
 
 def build_graph():
     workflow = StateGraph(LearningState)
 
-
+    
     workflow.add_node("router", router_node)
     workflow.add_node("welcome", welcome_node)
     workflow.add_node("skill_assessment", skill_assessment_agent)
@@ -107,8 +102,10 @@ def build_graph():
     workflow.add_conditional_edges(
         "router",
         route_entry,
-        {   "welcome": "welcome",
+        {   
+            "welcome": "welcome",
             "skill_assessment": "skill_assessment",
+            "curriculum_planner": "curriculum_planner",
             "quiz_generation": "quiz_generation",
             "track_progress": "track_progress"
         }
@@ -123,13 +120,13 @@ def build_graph():
         }
     )
     
+
     workflow.add_edge("curriculum_planner", "resource_finder")
     workflow.add_conditional_edges("resource_finder", tools_condition) 
     workflow.add_edge("tools", "resource_finder")  
     workflow.add_edge("resource_finder", END) 
     workflow.add_edge("welcome", END)
     
-
     workflow.add_edge("quiz_generation", END)
     workflow.add_edge("track_progress", END)
 
