@@ -59,107 +59,51 @@ def initialize_user_state(telegram_id: int, username: str):
     }
 
 
-async def telegram_message_handler(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-):
-    """
-    Handles every Telegram message.
-    """
-    if not update.message:
-        return
-
-    telegram_id = update.effective_chat.id
-    username = update.effective_user.username or "Learner"
-    incoming_text = update.message.text.strip()
-
-    if incoming_text == "/start":
-        user_memory_cache[telegram_id] = initialize_user_state(telegram_id, username)
-        insert_user(telegram_id, username)
-        
-        welcome_message = (
-            "👋 <b>Welcome to AI Learning Bot!</b>\n\n"
-            "I'm your personal AI learning assistant.\n\n"
-            "🚀 <b>Here's how I can help you:</b>\n"
-            "✅ Assess your current skill level\n"
-            "✅ Create a personalized learning roadmap\n"
-            "✅ Recommend resources\n"
-            "✅ Generate quizzes\n"
-            "✅ Track progress\n\n"
-            "📚 <b>What would you like to learn today?</b>\n\n"
-            "Examples:\n"
-            "• Python\n"
-            "• Machine Learning\n"
-            "• SQL\n"
-            "• Data Structures"
-        )
-
-        await update.message.reply_text(welcome_message, parse_mode="HTML")
-        return
-
-    insert_user(telegram_id, username)
-
-    print("=" * 60)
-    print(f"📩 Message from {telegram_id}: {incoming_text}")
+async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    telegram_id = update.effective_user.id
+    user_text = update.message.text.strip()
 
     if telegram_id not in user_memory_cache:
-        user_memory_cache[telegram_id] = initialize_user_state(
-            telegram_id,
-            username
-        )
-
-    state = user_memory_cache[telegram_id]
-    state["user_message"] = incoming_text
-
-    print("\nINPUT STATE")
-    print(state)
-
+        user_memory_cache[telegram_id] = {
+            "telegram_id": telegram_id,
+            "user_message": user_text,
+            "phase": "awaiting_topic",
+            "assessment_questions": [],
+            "assessment_answers": [],
+            "messages": []
+        }
     
-    is_completing_assessment = state.get("phase") == "assessment" and len(state.get("assessment_answers", [])) == 4
+    state = user_memory_cache[telegram_id]
+    state["user_message"] = user_text
 
     try:
         updated_state = await learning_graph.ainvoke(state)
         state.update(updated_state)
         user_memory_cache[telegram_id] = state
 
-        print("\nUPDATED STATE (STEP 1)")
-        print(state)
 
-        final_response = state.get("response_message", "Something went wrong.")
+        if state.get("response_message"):
+            await update.message.reply_text(state["response_message"], parse_mode="HTML")
 
-        placeholder_msg = await update.message.reply_text(
-            final_response,
-            parse_mode="HTML"
-        )
-
-        if is_completing_assessment or state.get("phase") == "learning" and not state.get("resources"):
-            print("🚀 Launching background DuckDuckGo Resource Finder...")
+        if state.get("phase") == "assessment_complete":
+            print("🚀 Assessment finished! Advancing to Curriculum & Resource Planner Agents...")
             
+            state["phase"] = "learning"
             
             await context.bot.send_chat_action(chat_id=telegram_id, action="typing")
+            await update.message.reply_text("🛠️ <b>Generating your personalized weekly curriculum & looking up active web resources...</b>", parse_mode="HTML")
             
-           
-            updated_resource_state = await learning_graph.ainvoke(state)
-            state.update(updated_resource_state)
+            final_learning_state = await learning_graph.ainvoke(state)
+            state.update(final_learning_state)
             user_memory_cache[telegram_id] = state
-            
-            print("\nUPDATED STATE (STEP 2 - Resource Search Completed)")
-            print(state)
-            
-            final_resource_response = state.get("response_message", "Something went wrong.")
-            
-            await context.bot.edit_message_text(
-                chat_id=telegram_id,
-                message_id=placeholder_msg.message_id,
-                text=final_resource_response,
-                parse_mode="HTML"
-            )
+
+    
+            if state.get("response_message"):
+                await update.message.reply_text(state["response_message"], parse_mode="HTML")
 
     except Exception as e:
-        print(f"❌ Graph Error: {e}")
-        error_fallback = "Something went wrong while processing your request."
-        await update.message.reply_text(error_fallback)
-
+        print(f"❌ Graph Error routing step: {e}")
+        await update.message.reply_text("Something went wrong while compiling your roadmap details.")
 
 def run_bot():
     """
