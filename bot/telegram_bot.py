@@ -6,6 +6,7 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+from telegram.ext import ApplicationBuilder
 
 from graph.workflow import build_graph
 from bot.scheduler import setup_scheduler
@@ -104,32 +105,31 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
         print(f"❌ Graph Error routing step: {e}")
         await update.message.reply_text("Something went wrong while compiling your roadmap details.")
 
+import os
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+
+
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
 def run_bot():
-    """
-    Starts Telegram bot.
-    """
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not TOKEN:
+        raise ValueError("❌ Error: TELEGRAM_BOT_TOKEN environment variable is missing!")
 
-    if not token:
-        raise ValueError("TELEGRAM_BOT_TOKEN not found.")
+    application = ApplicationBuilder().token(TOKEN).build()
+    
+    RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
+    PORT = int(os.getenv("PORT", 10000))
 
-    app = (
-        Application.builder()
-        .token(token)
-        .build()
-    )
-
-    app.add_handler(
-        MessageHandler(
-            filters.TEXT | filters.COMMAND,
-            telegram_message_handler,
+    if RENDER_URL:
+        print(f"📡 Setting up passive Webhook tracking via: {RENDER_URL}")
+        application.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            url_path=TOKEN,
+            webhook_url=f"{RENDER_URL}/{TOKEN}"
         )
-    )
-
-    setup_scheduler(user_memory_cache)
-
-    print("=" * 60)
-    print("🤖 AI Learning Bot Started")
-    print("=" * 60)
-
-    app.run_polling(drop_pending_updates=True)
+    else:
+        print("💻 Running locally via traditional polling...")
+        application.run_polling(
+            drop_pending_updates=True,
+            allowed_updates=Update.ALL_TYPES)
