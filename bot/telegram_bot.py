@@ -130,27 +130,31 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(intro_text, parse_mode="HTML")
 
 
+
+user_sessions = {}
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_text = update.message.text
     
-   
-    current_phase = user_phases.get(user_id, "awaiting_topic")
+    current_state = user_sessions.get(user_id, {
+        "phase": "awaiting_topic",
+        "topic": "",
+        "telegram_id": user_id
+    })
     
-    current_state = {
-        "user_message": user_text,
-        "phase": current_phase, 
-        "telegram_id": user_id  
-    }
+    
+    current_state["user_message"] = user_text
+    current_state["telegram_id"] = user_id
     
 
     output_state = graph_app.invoke(current_state)
     
-    user_phases[user_id] = output_state.get("phase", current_phase)
+    user_sessions[user_id] = dict(output_state)
     
     reply_text = output_state.get("response_message", "Processing...")
-    
     await update.message.reply_text(reply_text, parse_mode="HTML")
+
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
