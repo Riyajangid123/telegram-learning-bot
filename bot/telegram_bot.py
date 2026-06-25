@@ -112,6 +112,8 @@ from graph.workflow import build_graph
 
 graph_app = build_graph()
 
+user_phases = {}
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
@@ -125,21 +127,30 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     intro_text = output_state.get("response_message", "Something went wrong.")
     await update.message.reply_text(intro_text)
 
+    await update.message.reply_text(intro_text, parse_mode="HTML")
+
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_text = update.message.text
     
+   
+    current_phase = user_phases.get(user_id, "awaiting_topic")
+    
     current_state = {
         "user_message": user_text,
-        "phase": "awaiting_topic", 
+        "phase": current_phase, 
         "telegram_id": user_id  
     }
     
-    output_state = graph_app.invoke(current_state)
-    reply_text = output_state.get("response_message", "Processing...")
-    await update.message.reply_text(reply_text)
 
+    output_state = graph_app.invoke(current_state)
+    
+    user_phases[user_id] = output_state.get("phase", current_phase)
+    
+    reply_text = output_state.get("response_message", "Processing...")
+    
+    await update.message.reply_text(reply_text, parse_mode="HTML")
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
