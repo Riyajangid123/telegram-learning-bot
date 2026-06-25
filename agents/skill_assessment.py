@@ -92,7 +92,7 @@ def skill_assessment_agent(state: LearningState):
     if user_message and user_message.lower() != topic.lower():
         assessment_answers.append(user_message)
 
-    if len(assessment_questions) <= len(assessment_answers):
+    if len(assessment_answers) >= 5:
         response = chain2.invoke({
             "topic": topic,
             "questions": assessment_questions,
