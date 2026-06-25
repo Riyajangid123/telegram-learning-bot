@@ -109,6 +109,14 @@ import os
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 
 
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("👋 Hello! Welcome to the Learning Bot. How can I help you today?")
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_text = update.message.text
+    await update.message.reply_text(f"You said: {user_text}")
+
+
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 def run_bot():
@@ -117,21 +125,25 @@ def run_bot():
         raise ValueError("❌ Error: TELEGRAM_BOT_TOKEN environment variable is missing!")
 
     application = ApplicationBuilder().token(TOKEN).build()
+
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
 
     RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
     PORT = int(os.getenv("PORT", 10000))
 
     if RENDER_URL:
-        print(f"📡 Setting up passive Webhook tracking via: {RENDER_URL}")
+        print(f"📡 Webhook linked successfully! Listening on root path...")
         
-    
+
         application.run_webhook(
             listen="0.0.0.0",
             port=PORT,
-            url_path=TOKEN,
-            webhook_url=f"{RENDER_URL}/{TOKEN}"
+            url_path="/",
+            webhook_url=f"{RENDER_URL}/"
         )
+
     else:
         print("💻 Running locally via traditional polling...")
         application.run_polling()
