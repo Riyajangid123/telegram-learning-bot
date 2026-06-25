@@ -118,13 +118,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     initial_state = {
         "user_message": "/start",
         "phase": "start",
-        "user_id": user_id
+        "telegram_id": user_id  
     }
     
-
     output_state = graph_app.invoke(initial_state)
     intro_text = output_state.get("response_message", "Something went wrong.")
-    
     await update.message.reply_text(intro_text)
 
 
@@ -135,13 +133,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_state = {
         "user_message": user_text,
         "phase": "awaiting_topic", 
-        "user_id": user_id
+        "telegram_id": user_id  
     }
     
-
     output_state = graph_app.invoke(current_state)
     reply_text = output_state.get("response_message", "Processing...")
-    
     await update.message.reply_text(reply_text)
 
 
