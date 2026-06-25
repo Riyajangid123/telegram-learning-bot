@@ -107,14 +107,42 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
 
 import os
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from graph.workflow import build_graph
 
+
+graph_app = build_graph()
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Hello! Welcome to the Learning Bot. How can I help you today?")
+    user_id = update.effective_user.id
+    
+    initial_state = {
+        "user_message": "/start",
+        "phase": "start",
+        "user_id": user_id
+    }
+    
+
+    output_state = graph_app.invoke(initial_state)
+    intro_text = output_state.get("response_message", "Something went wrong.")
+    
+    await update.message.reply_text(intro_text)
+
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
     user_text = update.message.text
-    await update.message.reply_text(f"You said: {user_text}")
+    
+    current_state = {
+        "user_message": user_text,
+        "phase": "awaiting_topic", 
+        "user_id": user_id
+    }
+    
+
+    output_state = graph_app.invoke(current_state)
+    reply_text = output_state.get("response_message", "Processing...")
+    
+    await update.message.reply_text(reply_text)
 
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
