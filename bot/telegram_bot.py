@@ -115,8 +115,16 @@ graph_app = build_graph()
 user_phases = {}
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    
+    user = update.effective_user
+    user_id = user.id
+    username = user.username or f"User_{user_id}"
+    first_name = user.first_name or "Learner"
+
+    try:
+        print(f"👤 Registering user {user_id} into database...")
+    except Exception as e:
+        print(f"⚠️ Database registration warning: {e}")
+
     initial_state = {
         "user_message": "/start",
         "phase": "start",
@@ -124,9 +132,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     
     output_state = graph_app.invoke(initial_state)
+    
+    user_sessions[user_id] = dict(output_state)
+    
     intro_text = output_state.get("response_message", "Something went wrong.")
-    await update.message.reply_text(intro_text)
-
     await update.message.reply_text(intro_text, parse_mode="HTML")
 
 
