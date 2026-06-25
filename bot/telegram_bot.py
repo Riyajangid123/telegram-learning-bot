@@ -93,13 +93,12 @@ async def telegram_message_handler(update: Update, context: ContextTypes.DEFAULT
             await context.bot.send_chat_action(chat_id=telegram_id, action="typing")
             await update.message.reply_text("🛠️ <b>Generating your personalized weekly curriculum & looking up active web resources...</b>", parse_mode="HTML")
             
-            final_learning_state = await learning_graph.ainvoke(state)
-            state.update(final_learning_state)
-            user_memory_cache[telegram_id] = state
+            final_state = await learning_graph.ainvoke(state)
+            user_memory_cache[telegram_id] = final_state
 
     
-            if state.get("response_message"):
-                await update.message.reply_text(state["response_message"], parse_mode="HTML")
+            if final_state.get("response_message"):
+                await update.message.reply_text(final_state["response_message"], parse_mode="HTML")
 
     except Exception as e:
         print(f"❌ Graph Error routing step: {e}")
