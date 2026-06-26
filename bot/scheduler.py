@@ -33,6 +33,9 @@ async def send_daily_lesson():
     print("📚 Sending daily lessons...")
 
     users = get_all_active_users()
+    if not users:
+        print("ℹ️ No active users found for daily lessons.")
+        return
 
     for user in users:
         try:
@@ -102,7 +105,8 @@ async def send_daily_lesson():
             await bot.send_message(
                 chat_id=telegram_id,
                 text="\n".join(message_lines),
-                parse_mode="HTML"
+                parse_mode="HTML",
+                disable_web_page_preview=True
             )
 
             insert_daily_log(
@@ -128,6 +132,9 @@ async def send_evening_quiz():
     print("🧠 Sending evening quizzes...")
 
     users = get_all_active_users()
+    if not users:
+        print("ℹ️ No active users found for evening quizzes.")
+        return
 
     for user in users:
         try:
@@ -148,11 +155,6 @@ async def send_evening_quiz():
 
             questions = get_quiz_by_curriculum(current_week["id"])
             if not questions:
-                await bot.send_message(
-                    chat_id=telegram_id,
-                    text="No quiz available for today. Keep studying! 📚",
-                    parse_mode="HTML"
-                )
                 continue
 
             week_title = current_week.get("title") or current_week.get("module_title", "No Title")
@@ -189,15 +191,28 @@ async def send_evening_quiz():
                 today
             )
 
-            if telegram_id not in user_memory_cache:
-                user_memory_cache[telegram_id] = {}
+            if telegram_id not in user_memory_cache or not user_memory_cache[telegram_id]:
+                user_memory_cache[telegram_id] = {
+                    "messages": [],
+                    "telegram_id": telegram_id,
+                    "username": user.get("username", f"User_{telegram_id}"),
+                    "topic": user.get("topic", ""),
+                    "skill_level": user.get("skill_level", "beginner"),  
+                    "knowledge_gaps": [],       
+                    "phase": "learning",
+                    "curriculum": curriculum,
+                    "resources": {},
+                    "response_message": "",
+                    "user_message": ""
+                }
 
+            
             user_memory_cache[telegram_id].update({
                 "quiz_questions": questions,
                 "quiz_total": len(questions),
                 "awaiting_quiz_answers": True,
                 "current_module": current_week["week_number"],
-                "next_module": current_week["week_number"]
+                "phase": "learning" 
             })
 
             print(f"✅ Quiz active and sent to user {telegram_id}")
@@ -212,7 +227,6 @@ async def send_weekly_report():
     print("📊 Sending weekly reports...")
 
     users = get_all_active_users()
-
     for user in users:
         try:
             telegram_id = user["telegram_id"]
@@ -280,7 +294,7 @@ async def send_weekly_report():
 
 def setup_scheduler(memory_cache):
     global user_memory_cache
-    user_memory_cache = memory_cache
+    user_memory_cache = memory_cache 
 
     ist = timezone("Asia/Kolkata")
     scheduler = AsyncIOScheduler(timezone=ist)
