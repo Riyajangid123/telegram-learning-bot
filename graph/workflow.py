@@ -4,56 +4,50 @@ from agents.skill_assessment import skill_assessment_agent
 from agents.curriculum_planner import curriculum_planner_agent
 from agents.resource_finder import resource_finder_agent, tool_node  
 from agents.quiz_generation import quiz_generation_agent
-from agents.quiz_eveluator import quiz_evaluator_agent 
+from agents.quiz_eveluator import quiz_evaluator_agent  
 from agents.progress_tracker import progress_tracker_agent
 from langgraph.prebuilt import tools_condition
 from graph.state import LearningState
 from database.queries import get_user_by_telegram_id, get_curriculum_by_user
 
 def router_node(state: LearningState):
-    """Determines where to route the incoming Telegram message."""
+    """Determines where to route the incoming Telegram message while preserving state."""
     user_message = state.get("user_message", "").strip().lower()
-    telegram_id = state["telegram_id"]
+    telegram_id = state.get("telegram_id")
+    
+    state["user_message"] = user_message
     
     if user_message == "/quiz":
-        return {"response_message": "Loading quiz...", "user_message": user_message}
+        state["response_message"] = "Loading quiz..."
+        return state
     if user_message == "/progress":
-        return {"response_message": "Loading progress report...", "user_message": user_message}
+        state["response_message"] = "Loading progress report..."
+        return state
         
-    user = get_user_by_telegram_id(telegram_id)
-    if user and user.get("skill_level"):
-        curriculum = get_curriculum_by_user(user["id"])
-        if curriculum:
-            return {"user_message": user_message}
-            
-    return {"user_message": user_message}
+    return state
 
 
 def welcome_node(state: LearningState):
-    return {
-        "phase": "awaiting_topic",
-        "response_message": """
-        👋 Welcome to AI Learning Bot!
+    state["phase"] = "awaiting_topic"
+    state["response_message"] = """👋 Welcome to AI Learning Bot!
 
-        I'm your personal AI learning assistant.
+I'm your personal AI learning assistant.
 
-        🚀 Here's how I can help you:
+🚀 Here's how I can help you:
+✅ Assess your current skill level
+✅ Create a personalized learning roadmap
+✅ Recommend resources
+✅ Generate quizzes
+✅ Track progress
 
-        ✅ Assess your current skill level
-        ✅ Create a personalized learning roadmap
-        ✅ Recommend resources
-        ✅ Generate quizzes
-        ✅ Track progress
+📚 <b>What would you like to learn today?</b>
 
-        📚 What would you like to learn today?
-
-        Examples:
-        • Python
-        • Machine Learning
-        • SQL
-        • Data Structures
-        """
-    }
+Examples:
+• Python
+• Machine Learning
+• SQL
+• Data Structures"""
+    return state
 
 
 def route_entry(state):
@@ -68,11 +62,10 @@ def route_entry(state):
 
     phase = state.get("phase")
 
-    
     if phase == "quiz_evaluation":
         return "quiz_evaluation"
 
-    if phase == "awaiting_topic" or phase == "assessment":
+    if phase in ["awaiting_topic", "assessment"]:
         return "skill_assessment"
         
     if phase == "learning":
@@ -96,7 +89,6 @@ def route_assessment(state):
 def build_graph():
     workflow = StateGraph(LearningState)
 
-    # Register Nodes
     workflow.add_node("router", router_node)
     workflow.add_node("welcome", welcome_node)
     workflow.add_node("skill_assessment", skill_assessment_agent)
@@ -117,7 +109,7 @@ def build_graph():
             "skill_assessment": "skill_assessment",
             "curriculum_planner": "curriculum_planner",
             "quiz_generation": "quiz_generation",
-            "quiz_evaluation": "quiz_evaluation", 
+            "quiz_evaluation": "quiz_evaluation",  
             "track_progress": "track_progress"
         }
     )
