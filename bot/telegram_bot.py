@@ -2,6 +2,7 @@ import os
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 from telegram.ext import ContextTypes
+from telegram import BotCommand 
 
 from graph.workflow import build_graph
 from database.queries import insert_user, get_user_by_telegram_id
@@ -91,8 +92,20 @@ def run_bot():
 
     application = ApplicationBuilder().token(TOKEN).build()
 
+
+    async def set_commands(app):
+        commands = [
+            BotCommand("start", "Initialize the bot and select a topic"),
+            BotCommand("quiz", "Take a quiz on your current learning module"),
+            BotCommand("progress", "Check your syllabus progress status")
+        ]
+        await app.bot.set_my_commands(commands)
+
+    application.post_init = set_commands
+
     application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(MessageHandler(filters.TEXT, handle_message))
+    
     
     RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
     PORT = int(os.getenv("PORT", 10000))

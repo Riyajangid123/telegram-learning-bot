@@ -83,6 +83,7 @@ def curriculum_planner_agent(state: LearningState):
             f"No user found for telegram_id={telegram_id}"
         )
 
+
     user_id = user["id"]
 
     insert_curriculum(
@@ -90,18 +91,28 @@ def curriculum_planner_agent(state: LearningState):
         curriculum=curriculum
     )
     
+
     message_lines = [
         f"🎯 <b>Your custom {skill_level.capitalize()} Roadmap for {topic.upper()} is ready!</b>\n",
     ]
 
     for week in curriculum:
         message_lines.append(
-            f"• <b>Week {week['week']}:</b> {week['title']}"
+            f"• <b>Week {week['week']}:</b> {week['title']}\n  <i>{week['description']}</i>"
         )
 
-    message_lines.append("\n" + "─" * 20)
-    message_lines.append("⏳ <b>Step 2/2: Fetching matching learning materials...</b>")
-    message_lines.append("<i>I am using DuckDuckGo to search for relevant YouTube tutorials, documentation, and free courses for each week. Please hold on...</i>")
+    message_lines.append("\n" + "─" * 25)
+    
+
+    message_lines.append("⏳ <b>Step 2/2: Hunting down your learning materials...</b>")
+    message_lines.append("<i>I am searching the web via DuckDuckGo for the best documentation, free courses, and YouTube videos matching these weeks. Please hold on a moment...</i>\n")
+    
+    message_lines.append("─" * 25)
+
+    message_lines.append("💡 <b>Available Study Commands:</b>")
+    message_lines.append("📝 /quiz - Test your understanding on the current module")
+    message_lines.append("📈 /progress - Check your overall roadmap completion status")
+    message_lines.append("🚀 /start - Reset and choose a completely new topic")
 
     response_message = "\n".join(message_lines)
 
