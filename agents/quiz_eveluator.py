@@ -1,4 +1,4 @@
-from graph.workflow import LearningState
+from graph.state import LearningState
 from database.queries import (insert_quiz_attempt, get_user_by_telegram_id,
                               get_curriculum_by_user, get_quiz_by_curriculum)
 
