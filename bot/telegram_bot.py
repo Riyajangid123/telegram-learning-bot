@@ -69,8 +69,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_sessions[user_id] = initialize_user_state(user_id, username)
         
     current_state = user_sessions[user_id]
-    current_state["user_message"] = user_text
-    current_state["telegram_id"] = user_id
+
+    if current_state.get("awaiting_quiz_answers") is True:
+        current_state["user_answers"] = user_text.split() # Splits "B B D D B" into a list
+        current_state["phase"] = "quiz_evaluation"
     
     
     output_state = graph_app.invoke(current_state)
@@ -80,8 +82,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(output_state["response_message"], parse_mode="HTML")
         
 
-    if output_state.get("phase") == "assessment_complete":
-        print("🚀 Assessment finished! Sending intermediate status and running curriculum/search...")
+    if output_state.get("phase") in ["assessment_complete", "learning"] and current_state.get("phase") == "start":
+        print("🚀 Transitioning from assessment to curriculum generation!")
         
         await update.message.reply_text(
             "🛠️ <b>Generating your personalized weekly curriculum & looking up active web resources...</b>\n"
