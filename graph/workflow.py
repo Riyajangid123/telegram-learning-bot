@@ -119,7 +119,7 @@ def build_graph():
         route_assessment,
         {
             "curriculum_planner": "curriculum_planner",
-            "END": END
+            END: END
         }
     )
     
