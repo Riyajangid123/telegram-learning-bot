@@ -1,96 +1,137 @@
 from database.connection import get_connection
 
+
 def create_tables():
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
 
+        # ==========================
         # USERS
+        # ==========================
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
+        CREATE TABLE IF NOT EXISTS users(
             id SERIAL PRIMARY KEY,
             telegram_id BIGINT UNIQUE NOT NULL,
             username VARCHAR(100),
-            topic VARCHAR(200),
-            skill_level VARCHAR(50)
-                CHECK (skill_level IN ('beginner','intermediate','advanced')),
-            is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
 
-        # CURRICULUMS
+        # ==========================
+        # LEARNING TOPICS
+        # ==========================
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS curriculums (
+        CREATE TABLE IF NOT EXISTS learning_topics(
             id SERIAL PRIMARY KEY,
             user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            week_number INT NOT NULL,
-            module_title VARCHAR(200) NOT NULL,
-            module_desc TEXT,
-            is_completed BOOLEAN DEFAULT FALSE
+            topic VARCHAR(255) NOT NULL,
+            status VARCHAR(30) DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
 
+        # ==========================
+        # SKILL ASSESSMENTS
+        # ==========================
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS skill_assessments(
+            id SERIAL PRIMARY KEY,
+            topic_id INT NOT NULL REFERENCES learning_topics(id) ON DELETE CASCADE,
+            assessment JSONB NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+
+        # ==========================
+        # CURRICULUM
+        # ==========================
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS curriculums(
+            id SERIAL PRIMARY KEY,
+            topic_id INT NOT NULL REFERENCES learning_topics(id) ON DELETE CASCADE,
+            curriculum JSONB NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+
+        # ==========================
         # RESOURCES
+        # ==========================
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS resources (
+        CREATE TABLE IF NOT EXISTS resources(
             id SERIAL PRIMARY KEY,
             curriculum_id INT NOT NULL REFERENCES curriculums(id) ON DELETE CASCADE,
-            title VARCHAR(300) NOT NULL,
-            url TEXT NOT NULL,
-            resource_type VARCHAR(50)
-                CHECK (resource_type IN ('youtube','article','course','docs'))
+            resources JSONB NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
 
+        # ==========================
         # QUIZZES
+        # ==========================
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS quizzes (
+        CREATE TABLE IF NOT EXISTS quizzes(
             id SERIAL PRIMARY KEY,
             curriculum_id INT NOT NULL REFERENCES curriculums(id) ON DELETE CASCADE,
-            question TEXT NOT NULL,
-            option_a VARCHAR(300) NOT NULL,
-            option_b VARCHAR(300) NOT NULL,
-            option_c VARCHAR(300) NOT NULL,
-            option_d VARCHAR(300) NOT NULL,
-            correct_ans VARCHAR(5)
-                CHECK (correct_ans IN ('A','B','C','D'))
+            quiz JSONB NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
 
+        # ==========================
         # QUIZ ATTEMPTS
+        # ==========================
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS quiz_attempts (
+        CREATE TABLE IF NOT EXISTS quiz_attempts(
             id SERIAL PRIMARY KEY,
+            quiz_id INT NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
             user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            curriculum_id INT NOT NULL REFERENCES curriculums(id) ON DELETE CASCADE,
-            score INT NOT NULL,
-            total INT NOT NULL,
+            answers JSONB NOT NULL,
+            evaluation JSONB NOT NULL,
+            score FLOAT,
             attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
 
-        # DAILY LOG
+        # ==========================
+        # PROGRESS REPORTS
+        # ==========================
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS daily_logs (
+        CREATE TABLE IF NOT EXISTS progress_reports(
             id SERIAL PRIMARY KEY,
             user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            curriculum_id INT NOT NULL REFERENCES curriculums(id) ON DELETE CASCADE,
-            lesson_sent BOOLEAN DEFAULT FALSE,
-            quiz_sent BOOLEAN DEFAULT FALSE,
-            sent_date DATE NOT NULL,
-            UNIQUE(user_id, curriculum_id, sent_date)
+            topic_id INT NOT NULL REFERENCES learning_topics(id) ON DELETE CASCADE,
+            report JSONB NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+
+        # ==========================
+        # USER SESSION
+        # ==========================
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sessions(
+            id SERIAL PRIMARY KEY,
+            user_id INT UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            current_phase VARCHAR(100),
+            current_topic_id INT REFERENCES learning_topics(id),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
 
         conn.commit()
-        print("✅ All tables created successfully.")
+        print("✅ Tables created successfully.")
 
     except Exception as e:
         conn.rollback()
-        print(f"❌ Error creating tables: {e}")
+        print(e)
 
     finally:
         cursor.close()
         conn.close()
+
+
+if __name__ == "__main__":
+    create_tables()

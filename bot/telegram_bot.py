@@ -1,137 +1,187 @@
+import logging
 import os
+
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
-from telegram.ext import ContextTypes
-from telegram import BotCommand 
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
 
 from graph.workflow import build_graph
-from database.queries import insert_user, get_user_by_telegram_id
+from graph.state import LearningState
 
-graph_app = build_graph()
+from database.queries import (
+    create_user,
+    get_user,
+    get_session,
+    update_session,
+    create_learning_topic,
+)
+
+logging.basicConfig(level=logging.INFO)
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+workflow = build_graph()
+
 user_sessions = {}
 
-def initialize_user_state(telegram_id: int, username: str):
+
+def default_state(user, username) -> LearningState:
     """
-    Ensures ALL keys required by your agents exist in the state stringently
-    to prevent future KeyErrors down the pipeline.
+    user = row returned from get_user()
     """
+
     return {
         "messages": [],
-        "telegram_id": telegram_id,
+
+        "user_id": user[0],
+        "telegram_id": user[1],
         "username": username,
+
         "topic": "",
-        "skill_level": "beginner",  
-        "knowledge_gaps": [],       
-        "phase": "awaiting_topic",
-        "curriculum": [],
-        "resources": {},
+        "topic_id": None,
+
+        "user_message": "",
+
+        "phase": "",
+
+        "assessment_questions": [],
+        "assessment_answers": [],
+        "skill_assessment": None,
+
+        "curriculum": None,
+        "curriculum_id": None,
+
+        "resources": None,
+
+        "quiz": None,
+        "quiz_id": None,
+
+        "user_answers": [],
+        "quiz_evaluation": None,
+
+        "progress": None,
+
         "response_message": "",
-        "user_message": ""
     }
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    user_id = user.id
-    username = user.username or f"User_{user_id}"
 
-    try:
-        existing_user = get_user_by_telegram_id(user_id)
-        if not existing_user:
-            print(f"👤 User {user_id} not found in DB. Automatically registering...")
-            insert_user(telegram_id=user_id, username=username)
-            print("✅ User saved successfully!")
-    except Exception as e:
-        print(f"⚠️ Database automatic registration warning: {e}")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    initial_state = initialize_user_state(user_id, username)
-    initial_state["user_message"] = "/start"
-    initial_state["phase"] = "start"
-    
-    output_state = graph_app.invoke(initial_state)
-    user_sessions[user_id] = dict(output_state)
-    
-    intro_text = output_state.get("response_message", "Something went wrong.")
-    await update.message.reply_text(intro_text, parse_mode="HTML")
+    telegram_id = update.effective_user.id
+    username = update.effective_user.username or ""
+
+    create_user(
+        telegram_id=telegram_id,
+        username=username,
+    )
+
+    user = get_user(telegram_id)
+
+    state = default_state(user, username)
+
+    state["user_message"] = "/start"
+
+    result = workflow.invoke(state)
+
+    user_sessions[telegram_id] = result
+
+    update_session(
+        user_id=result["user_id"],
+        phase=result["phase"],
+        topic_id=None,
+    )
+
+    await update.message.reply_text(
+        result["response_message"],
+        parse_mode="HTML",
+    )
 
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    user_text = update.message.text.strip()
-    username = update.effective_user.username or f"User_{user_id}"
-    
-    if user_id not in user_sessions:
-        try:
-            if not get_user_by_telegram_id(user_id):
-                insert_user(telegram_id=user_id, username=username)
-        except Exception as e:
-            print(f"⚠️ Middle-step DB verification fallback error: {e}")
-            
-        user_sessions[user_id] = initialize_user_state(user_id, username)
-        
-    current_state = user_sessions[user_id]
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    if current_state.get("awaiting_quiz_answers") is True:
-        current_state["user_answers"] = user_text.split() # Splits "B B D D B" into a list
-        current_state["phase"] = "quiz_evaluation"
-    
-    
-    output_state = graph_app.invoke(current_state)
-    user_sessions[user_id] = dict(output_state)
-    
-    if output_state.get("response_message"):
-        await update.message.reply_text(output_state["response_message"], parse_mode="HTML")
-        
+    telegram_id = update.effective_user.id
+    username = update.effective_user.username or ""
+    message = update.message.text.strip()
 
-    if output_state.get("phase") in ["assessment_complete", "learning"] and current_state.get("phase") == "start":
-        print("🚀 Transitioning from assessment to curriculum generation!")
-        
-        await update.message.reply_text(
-            "🛠️ <b>Generating your personalized weekly curriculum & looking up active web resources...</b>\n"
-            "<i>I am querying Groq and using DuckDuckGo to scrape top video links and tutorials. Please hold on a brief moment...</i>", 
-            parse_mode="HTML"
+    user = get_user(telegram_id)
+
+    if user is None:
+
+        create_user(telegram_id, username)
+        user = get_user(telegram_id)
+
+    if telegram_id in user_sessions:
+
+        state = user_sessions[telegram_id]
+
+    else:
+
+        state = default_state(user, username)
+
+        session = get_session(state["user_id"])
+
+        if session:
+
+            state["phase"] = session[0]
+            state["topic_id"] = session[1]
+
+    state["user_message"] = message
+
+    # User entered topic after /start
+    if state["phase"] == "awaiting_topic":
+
+        state["topic"] = message
+
+        topic_id = create_learning_topic(
+            state["user_id"],
+            message,
         )
-        
-        output_state["phase"] = "learning"
-        await context.bot.send_chat_action(chat_id=user_id, action="typing")
-        
-        final_state = graph_app.invoke(output_state)
-        user_sessions[user_id] = dict(final_state)
-        
-        if final_state.get("response_message"):
-            await update.message.reply_text(final_state["response_message"], parse_mode="HTML")
+
+        state["topic_id"] = topic_id
+
+    result = workflow.invoke(state)
+
+    user_sessions[telegram_id] = result
+
+    update_session(
+        user_id=result["user_id"],
+        phase=result["phase"],
+        topic_id=result.get("topic_id"),
+    )
+
+    await update.message.reply_text(
+        result["response_message"],
+        parse_mode="HTML",
+    )
 
 
 def run_bot():
-    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not TOKEN:
-        raise ValueError("❌ Error: TELEGRAM_BOT_TOKEN environment variable is missing!")
 
-    application = ApplicationBuilder().token(TOKEN).build()
+    application = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .build()
+    )
 
-    async def set_commands(app):
-        commands = [
-            BotCommand("start", "Initialize the bot and select a topic"),
-            BotCommand("quiz", "Take a quiz on your current learning module"),
-            BotCommand("progress", "Check your syllabus progress status")
-        ]
-        await app.bot.set_my_commands(commands)
-
-    application.post_init = set_commands
-
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(MessageHandler(filters.TEXT, handle_message))
-    
-    RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
-    PORT = int(os.getenv("PORT", 10000))
-
-    if RENDER_URL:
-        print(f"📡 Webhook linked successfully! Listening on root path...")
-        application.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            url_path="/",
-            webhook_url=f"{RENDER_URL}/"
+    application.add_handler(
+        CommandHandler(
+            "start",
+            start,
         )
-    else:
-        print("💻 Running locally via traditional polling...")
-        application.run_polling()
+    )
+
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            message_handler,
+        )
+    )
+
+    print("🚀 AI Learning Bot Started")
+
+    application.run_polling()

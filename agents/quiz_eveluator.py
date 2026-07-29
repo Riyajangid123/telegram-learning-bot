@@ -1,57 +1,61 @@
+from langchain_core.prompts import ChatPromptTemplate
+from agents.llm import LLM
+from schema.schema import QuizEvaluation
 from graph.state import LearningState
-from database.queries import (insert_quiz_attempt, get_user_by_telegram_id,
-                              get_curriculum_by_user, get_quiz_by_curriculum)
+from database.queries import save_quiz_attempt
 
-def quiz_evaluator_agent(state: LearningState):
-    telegram_id = state["telegram_id"]
-    user_answers_input = state.get("user_answers", [])
+class QuizEvaluationAgent:
+    def __init__(self):
+        self.llm=LLM().llm()
+        self.evaluation_prompt = ChatPromptTemplate.from_template("""
+            You are an AI Quiz Evaluator.
 
-    if isinstance(user_answers_input, str):
-        user_answers = user_answers_input.strip().split()
-    else:
-        user_answers = [str(ans).strip() for ans in user_answers_input]
+            Quiz:
+            {quiz}
 
-    user = get_user_by_telegram_id(telegram_id)
-    if not user:
-        return {"response_message": "❌ Error: Profile not found during grading."}
-    
-    user_id = user["id"]
-    curriculum = get_curriculum_by_user(user_id)
+            User Answers:
+            {answers}
 
-    current_week = next(
-        (w for w in curriculum if w["week_number"] == state.get("current_module", 1)),
-        None
-    )
+            Evaluate every question.
 
-    if not current_week:
-        return {"response_message": "❌ Error: Current module structure not found."}
+            Instructions
 
-    curriculum_id = current_week["id"]
-    quiz_questions = get_quiz_by_curriculum(curriculum_id)
+            - Compare user answer with correct answer.
+            - Award marks.
+            - Explain mistakes.
+            - Identify weak topics.
+            - Identify strengths.
+            - Recommend revision topics.
 
-    if not quiz_questions:
-        return {"response_message": "❌ Error: Could not find quiz questions to evaluate against."}
+            Return ONLY the Pydantic schema.
+            """)
 
-    score = 0
+        self.chain = (
+            self.evaluation_prompt
+            | self.llm.with_structured_output(
+                QuizEvaluation
+            )
+        )
 
-    for i, q in enumerate(quiz_questions):
-        if i < len(user_answers):
-            correct_answer = q.get("correct", q.get("correct_ans", "")).strip().upper()
-            
-            if user_answers[i].upper() == correct_answer:
-                score += 1
+    def evaluate(self, state:LearningState):
 
-    insert_quiz_attempt(user_id, curriculum_id, score, len(quiz_questions))
+        evaluation = self.chain.invoke({
 
-    feedback_msg = (
-        f"🏆 <b>Quiz Evaluation Completed!</b>\n\n"
-        f"📊 Your Score: <b>{score} / {len(quiz_questions)}</b>\n"
-        f"<i>Great job! You can type /progress to see your updated completion chart or ask me any follow-up questions about this module.</i>"
-    )
+            "quiz": state["quiz_questions"],
 
-    return {
-        "quiz_score": score,
-        "quiz_total": len(quiz_questions),
-        "awaiting_quiz_answers": False,
-        "response_message": feedback_msg
-    }
+            "answers": state["user_answers"]
+
+        })
+
+        state["quiz_evaluation"] = evaluation
+        save_quiz_attempt(
+            quiz_id=state["quiz_id"],
+            user_id=state["user_id"],
+            answers=state["user_answers"],
+            evaluation=evaluation.model_dump(),  
+            score=evaluation.score
+        )
+
+        state["phase"] = "idle"
+
+        return state

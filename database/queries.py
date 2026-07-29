@@ -1,326 +1,372 @@
-import os
+import json
 from database.connection import get_connection
-from psycopg2.extras import RealDictCursor
 
-def insert_user(telegram_id, username):
+def create_user(telegram_id, username):
+
     conn = get_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            INSERT INTO users (telegram_id, username)
-            VALUES (%s, %s)
-            ON CONFLICT (telegram_id) DO NOTHING
-        """, (telegram_id, username))
-        conn.commit()
-        print(f"User {username} handled.")
-    except Exception as e:
-        print(f"Insert user error: {str(e)}")
-    finally:
-        cursor.close()
-        conn.close()
+    cur = conn.cursor()
 
-def get_user_by_telegram_id(telegram_id):
+    cur.execute("""
+    INSERT INTO users(telegram_id, username)
+    VALUES(%s,%s)
+    ON CONFLICT (telegram_id)
+    DO NOTHING
+    """,(telegram_id,username))
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+def get_user(telegram_id):
+
     conn = get_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        cursor.execute("SELECT * FROM users WHERE telegram_id = %s", (telegram_id,))
-        user = cursor.fetchone()
-        print(f"DEBUG raw result: {user}")
-        return user
-    finally:
-        cursor.close()
-        conn.close()
-    
-def update_user_topic_skill_level(telegram_id, topic, skill_level):
-    conn = get_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            UPDATE users SET topic = %s, skill_level = %s 
-            WHERE telegram_id = %s
-        """, (topic, skill_level, telegram_id))
-        conn.commit()
-    finally:
-        cursor.close()
-        conn.close()
+    cur = conn.cursor()
 
-def insert_curriculum(user_id, curriculum: list):
-    conn = get_connection()
-    cursor = conn.cursor()
-    try:
-        for week in curriculum:
-            cursor.execute("""
-                INSERT INTO curriculums(user_id, week_number, module_title, module_desc) 
-                VALUES (%s, %s, %s, %s)
-            """, (user_id, week["week"], week["title"], week["description"]))
-        conn.commit()
-        print(f"Curriculum inserted for user {user_id}")
-    except Exception as e:
-        print(f"Insert curriculum error: {str(e)}")
-    finally:
-        cursor.close()
-        conn.close()
+    cur.execute("""
+    SELECT * FROM users
+    WHERE telegram_id=%s
+    """,(telegram_id,))
 
-def get_curriculum_by_user(user_id):
-    conn = get_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        cursor.execute("""
-            SELECT * FROM curriculums
-            WHERE user_id = %s
-            ORDER BY week_number
-        """, (user_id,))
-        return cursor.fetchall()
-    finally:
-        cursor.close()
-        conn.close()
+    user=cur.fetchone()
 
-def mark_module_completed(curriculum_id):
-    """Marks a specific week/module as completed in the curriculums table using its unique ID."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            UPDATE curriculums
-            SET is_completed = TRUE
-            WHERE id = %s
-        """, (curriculum_id,))
-        conn.commit()
-        print(f"💾 Database updated: Curriculum ID {curriculum_id} set to Completed.")
-    except Exception as e:
-        print(f"❌ Error updating curriculum completion status: {e}")
-    finally:
-        cursor.close()
-        conn.close()
-        
-def insert_resources(curriculum_id, resources: list):
-    conn = get_connection()
-    cursor = conn.cursor()
-    try:
-        for resource in resources:
-            cursor.execute("""
-                INSERT INTO resources (curriculum_id, title, url, resource_type)
-                VALUES (%s, %s, %s, %s)
-            """, (curriculum_id, resource["title"], resource["url"], resource["type"]))
-        conn.commit()
-    except Exception as e:
-        print(f"Insert resources error: {str(e)}")
-    finally:
-        cursor.close()
-        conn.close()
+    cur.close()
+    conn.close()
 
-def get_resources_by_user_and_week(user_id, week_number):
-    conn = get_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        cursor.execute("""
-            SELECT r.* FROM resources r
-            JOIN curriculums c ON r.curriculum_id = c.id
-            WHERE c.user_id = %s AND c.week_number = %s
-        """, (user_id, week_number))
-        return cursor.fetchall()
-    finally:
-        cursor.close()
-        conn.close()
+    return user
 
-def insert_quiz_questions(curriculum_id, questions: list):
-    conn = get_connection()
-    cursor = conn.cursor()
-    try:
-        for q in questions:
-            cursor.execute("""
-            INSERT INTO quizzes(
-                curriculum_id,
-                question,
-                option_a,
-                option_b,
-                option_c,
-                option_d,
-                correct_ans,
-                explanation
-            )
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-            """,(
-                curriculum_id,
-                q["question"],
-                q["options"]["A"],
-                q["options"]["B"],
-                q["options"]["C"],
-                q["options"]["D"],
-                q["correct"],
-                q["explanation"]
-            ))
-    except Exception as e:
-        print(f"Insert quiz error: {str(e)}")
-    finally:
-        cursor.close()
-        conn.close()
+def create_learning_topic(user_id,topic):
 
-def get_quiz_by_curriculum(curriculum_id):
-    conn = get_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        cursor.execute("SELECT * FROM quizzes WHERE curriculum_id = %s", (curriculum_id,))
-        return cursor.fetchall()
-    finally:
-        cursor.close()
-        conn.close()
+    conn=get_connection()
+    cur=conn.cursor()
 
-def insert_quiz_attempt(user_id, curriculum_id, score, total):
-    conn = get_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            INSERT INTO quiz_attempts (user_id, curriculum_id, score, total)
-            VALUES (%s, %s, %s, %s)
-        """, (user_id, curriculum_id, score, total))
-        conn.commit()
-    except Exception as e:
-        print(f"Insert quiz attempt error: {str(e)}")
-    finally:
-        cursor.close()
-        conn.close()
+    cur.execute("""
+    INSERT INTO learning_topics(user_id,topic)
+    VALUES(%s,%s)
+    RETURNING id
+    """,(user_id,topic))
 
-def get_quiz_attempts_by_user(user_id):
-    conn = get_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        cursor.execute("""
-            SELECT qa.*, c.week_number, c.module_title
-            FROM quiz_attempts qa
-            JOIN curriculums c ON qa.curriculum_id = c.id
-            WHERE qa.user_id = %s
-            ORDER BY qa.attempted_at DESC
-        """, (user_id,))
-        return cursor.fetchall()
-    finally:
-        cursor.close()
-        conn.close()
+    topic_id=cur.fetchone()[0]
 
-def get_all_active_users():
-    conn = get_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        cursor.execute("SELECT * FROM users WHERE is_active = TRUE")
-        return cursor.fetchall()
-    finally:
-        cursor.close()
-        conn.close()
+    conn.commit()
 
-def insert_daily_log(user_id, curriculum_id, sent_date):
-    conn = get_connection()
-    cursor = conn.cursor()
+    cur.close()
+    conn.close()
 
-    try:
-        cursor.execute("""
-            INSERT INTO daily_logs (
-                user_id,
-                curriculum_id,
-                lesson_sent,
-                quiz_sent,
-                sent_date
-            )
-            VALUES (%s, %s, TRUE, FALSE, %s)
-            ON CONFLICT (user_id, curriculum_id, sent_date)
-            DO NOTHING
-        """, (user_id, curriculum_id, sent_date))
+    return topic_id
 
-        conn.commit()
+def get_latest_topic(user_id):
 
-    finally:
-        cursor.close()
-        conn.close()
+    conn=get_connection()
+    cur=conn.cursor()
 
-def update_lesson_sent(user_id, curriculum_id, sent_date):
-    conn = get_connection()
-    cursor = conn.cursor()
+    cur.execute("""
+    SELECT id,topic
+    FROM learning_topics
+    WHERE user_id=%s
+    ORDER BY id DESC
+    LIMIT 1
+    """,(user_id,))
 
-    try:
-        cursor.execute("""
-            UPDATE daily_logs
-            SET lesson_sent = TRUE
-            WHERE user_id = %s
-              AND curriculum_id = %s
-              AND sent_date = %s
-        """, (user_id, curriculum_id, sent_date))
+    row=cur.fetchone()
 
-        conn.commit()
+    cur.close()
+    conn.close()
 
-    finally:
-        cursor.close()
-        conn.close()
+    return row
 
-def update_quiz_sent(user_id, curriculum_id, sent_date):
-    conn = get_connection()
-    cursor = conn.cursor()
+def save_skill_assessment(topic_id,assessment):
 
-    try:
-        cursor.execute("""
-            UPDATE daily_logs
-            SET quiz_sent = TRUE
-            WHERE user_id = %s
-              AND curriculum_id = %s
-              AND sent_date = %s
-        """, (user_id, curriculum_id, sent_date))
+    conn=get_connection()
+    cur=conn.cursor()
 
-        conn.commit()
+    cur.execute("""
+    INSERT INTO skill_assessments(topic_id,assessment)
+    VALUES(%s,%s)
+    """,
+    (
+        topic_id,
+        json.dumps(assessment)
+    ))
 
-    finally:
-        cursor.close()
-        conn.close()
+    conn.commit()
 
+    cur.close()
+    conn.close()
 
-def delete_quiz_by_curriculum(curriculum_id):
-    conn = get_connection()
-    cursor = conn.cursor()
+def get_latest_skill_assessment(topic_id):
 
-    try:
-        cursor.execute("""
-            DELETE FROM quizzes
-            WHERE curriculum_id=%s
-        """,(curriculum_id,))
-        conn.commit()
-    finally:
-        cursor.close()
-        conn.close()
+    conn=get_connection()
+    cur=conn.cursor()
 
+    cur.execute("""
+    SELECT assessment
+    FROM skill_assessments
+    WHERE topic_id=%s
+    ORDER BY id DESC
+    LIMIT 1
+    """,(topic_id,))
 
-def lesson_already_sent(user_id, curriculum_id, sent_date):
-    conn = get_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    row=cur.fetchone()
 
-    try:
-        cursor.execute("""
-            SELECT lesson_sent
-            FROM daily_logs
-            WHERE user_id=%s
-              AND curriculum_id=%s
-              AND sent_date=%s
-        """, (user_id, curriculum_id, sent_date))
+    cur.close()
+    conn.close()
 
-        row = cursor.fetchone()
-        return row and row["lesson_sent"]
+    return row
 
-    finally:
-        cursor.close()
-        conn.close()
+def save_curriculum(topic_id,curriculum):
 
-def quiz_already_sent(user_id, curriculum_id, sent_date):
-    conn = get_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    conn=get_connection()
+    cur=conn.cursor()
 
-    try:
-        cursor.execute("""
-            SELECT quiz_sent
-            FROM daily_logs
-            WHERE user_id=%s
-              AND curriculum_id=%s
-              AND sent_date=%s
-        """, (user_id, curriculum_id, sent_date))
+    cur.execute("""
+    INSERT INTO curriculums(topic_id,curriculum)
+    VALUES(%s,%s)
+    RETURNING id
+    """,
+    (
+        topic_id,
+        json.dumps(curriculum)
+    ))
 
-        row = cursor.fetchone()
-        return row and row["quiz_sent"]
+    curriculum_id=cur.fetchone()[0]
 
-    finally:
-        cursor.close()
-        conn.close()
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+    return curriculum_id
+
+def get_curriculum(curriculum_id):
+
+    conn=get_connection()
+    cur=conn.cursor()
+
+    cur.execute("""
+    SELECT curriculum
+    FROM curriculums
+    WHERE id=%s
+    """,(curriculum_id,))
+
+    row=cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    return row
+
+def save_resources(curriculum_id,resources):
+
+    conn=get_connection()
+    cur=conn.cursor()
+
+    cur.execute("""
+    INSERT INTO resources(curriculum_id,resources)
+    VALUES(%s,%s)
+    """,
+    (
+        curriculum_id,
+        json.dumps(resources)
+    ))
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+def save_quiz(curriculum_id,quiz):
+
+    conn=get_connection()
+    cur=conn.cursor()
+
+    cur.execute("""
+    INSERT INTO quizzes(curriculum_id,quiz)
+    VALUES(%s,%s)
+    RETURNING id
+    """,
+    (
+        curriculum_id,
+        json.dumps(quiz)
+    ))
+
+    quiz_id=cur.fetchone()[0]
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+    return quiz_id
+
+def get_latest_quiz(curriculum_id):
+
+    conn=get_connection()
+    cur=conn.cursor()
+
+    cur.execute("""
+    SELECT id,quiz
+    FROM quizzes
+    WHERE curriculum_id=%s
+    ORDER BY id DESC
+    LIMIT 1
+    """,(curriculum_id,))
+
+    row=cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    return row
+
+def save_quiz_attempt(
+        quiz_id,
+        user_id,
+        answers,
+        evaluation,
+        score
+):
+
+    conn=get_connection()
+    cur=conn.cursor()
+
+    cur.execute("""
+    INSERT INTO quiz_attempts(
+        quiz_id,
+        user_id,
+        answers,
+        evaluation,
+        score
+    )
+    VALUES(%s,%s,%s,%s,%s)
+    """,
+    (
+        quiz_id,
+        user_id,
+        json.dumps(answers),
+        json.dumps(evaluation),
+        score
+    ))
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+def get_quiz_history(user_id):
+
+    conn=get_connection()
+    cur=conn.cursor()
+
+    cur.execute("""
+    SELECT *
+    FROM quiz_attempts
+    WHERE user_id=%s
+    ORDER BY attempted_at DESC
+    """,(user_id,))
+
+    rows=cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return rows
+
+def save_progress(
+        user_id,
+        topic_id,
+        report
+):
+
+    conn=get_connection()
+    cur=conn.cursor()
+
+    cur.execute("""
+    INSERT INTO progress_reports(
+        user_id,
+        topic_id,
+        report
+    )
+    VALUES(%s,%s,%s)
+    """,
+    (
+        user_id,
+        topic_id,
+        json.dumps(report)
+    ))
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+def get_latest_progress(user_id):
+
+    conn=get_connection()
+    cur=conn.cursor()
+
+    cur.execute("""
+    SELECT report
+    FROM progress_reports
+    WHERE user_id=%s
+    ORDER BY id DESC
+    LIMIT 1
+    """,(user_id,))
+
+    row=cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    return row
+
+def update_session(user_id,phase,topic_id):
+
+    conn=get_connection()
+    cur=conn.cursor()
+
+    cur.execute("""
+    INSERT INTO sessions(
+        user_id,
+        current_phase,
+        current_topic_id
+    )
+    VALUES(%s,%s,%s)
+
+    ON CONFLICT(user_id)
+
+    DO UPDATE SET
+
+    current_phase=EXCLUDED.current_phase,
+    current_topic_id=EXCLUDED.current_topic_id,
+    updated_at=CURRENT_TIMESTAMP
+    """,
+    (
+        user_id,
+        phase,
+        topic_id
+    ))
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+def get_session(user_id):
+
+    conn=get_connection()
+    cur=conn.cursor()
+
+    cur.execute("""
+    SELECT current_phase,current_topic_id
+    FROM sessions
+    WHERE user_id=%s
+    """,(user_id,))
+
+    row=cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    return row
+

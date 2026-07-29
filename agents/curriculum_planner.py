@@ -1,123 +1,53 @@
 from langchain_core.prompts import ChatPromptTemplate
-from database.queries import insert_curriculum, get_user_by_telegram_id
+from schema.schema import CurriculumPlan
+from agents.llm import LLM
 from graph.state import LearningState
-from langchain_groq import ChatGroq
-from dotenv import load_dotenv
-import json
-import os
+from database.queries import save_curriculum
 
-load_dotenv()
+class CurriculumPlanner:
+    def __init__(self):
+        self.llm = LLM().llm()
 
-def curriculum_planner_agent(state: LearningState):
-    model = ChatGroq(
-         model="llama-3.3-70b-versatile",
-         temperature=0.3,
-         api_key=os.getenv("GROQ_API_KEY")
-    )
+        self.prompt = ChatPromptTemplate.from_template("""
+            You are an expert AI Curriculum Planner.
 
-    telegram_id = state["telegram_id"]
-    topic = state.get("topic", "")
-    skill_level = state.get("skill_level", "")
-    knowledge_gap = state.get("knowledge_gaps", [])
+            Create a personalized learning roadmap based on the following skill assessment.
 
-    prompt = ChatPromptTemplate.from_template(
-        """You are a planner expert.
+            Skill Assessment:
+            {skill_assessment}
 
-        User wants to learn: {topic}
-        Their skill level: {skill_level}
-        Their knowledge gaps: {knowledge_gaps}
-    
-        Generate a structured week by week curriculum plan.
+            Guidelines:
+            - Tailor the curriculum according to the learner's current level.
+            - Prioritize weak areas first.
+            - Arrange topics from foundational to advanced.
+            - Include learning objectives and practice tasks.
+            - If the learner is Beginner, do not assign a capstone project.
+            - If the learner is Intermediate or above, include an appropriate capstone project.
+            - Keep the roadmap practical and realistic.
+
+            Return ONLY the Pydantic schema.
+            """)
         
-        Rules:
-        - Beginner → 6 weeks
-        - Intermediate → 4 weeks
-        - Pro → 2 weeks
-        - Each week should build on the previous one
-        - Cover the knowledge gaps specifically
-        - Keep it practical and project based
-        
-            Return ONLY a JSON like this, nothing else:
-        {{
-            "curriculum": [
-                {{
-                    "week": 1,
-                    "title": "Python Basics",
-                    "description": "Variables, loops, functions",
-                    "topics": ["variables", "loops", "functions"]
-                }},
-                {{
-                    "week": 2,
-                    "title": "Data Structures",
-                    "description": "Lists, dicts, sets",
-                    "topics": ["lists", "dictionaries", "sets"]
-                }}
-            ]
-        }}
-        """
-    )
+        self.structured_llm = self.llm.with_structured_output(CurriculumPlan)
+        self.chain = self.prompt | self.structured_llm
 
-    chain = prompt | model
+    def curriculum_generation(self,state:LearningState):
+        try:
+            result = self.chain.invoke({
+                "skill_assessment": state["skill_assessment"]
+            })
 
-    response = chain.invoke({
-        "topic": topic,
-        "skill_level": skill_level,
-        "knowledge_gaps": knowledge_gap
-    })
+            state["curriculum"] = result
+            print("Curriculum generated successfuly",state["curriculum"])
+            curriculum_id = save_curriculum(
+                topic_id=state["topic_id"],
+                curriculum=result.model_dump()  
+            )
 
-    clean = (response.content.replace("```json", "").replace("```", "").strip())
+            state["curriculum_id"] = curriculum_id
 
-    try:
-        data = json.loads(clean)
-        curriculum = data["curriculum"]
-    except Exception as e:
-        print(f"Curriculum parse error: {e}")
-        return {
-            "response_message": "Unable to generate curriculum right now."
-        }
+        except Exception as e:
+            print(f"Curriculum generation failed: {e}")
+            state["curriculum"] = None
 
-    user = get_user_by_telegram_id(telegram_id)
-
-    if not user:
-        raise ValueError(
-            f"No user found for telegram_id={telegram_id}"
-        )
-
-
-    user_id = user["id"]
-
-    insert_curriculum(
-        user_id=user_id,
-        curriculum=curriculum
-    )
-    
-
-    message_lines = [
-        f"🎯 <b>Your custom {skill_level.capitalize()} Roadmap for {topic.upper()} is ready!</b>\n",
-    ]
-
-    for week in curriculum:
-        message_lines.append(
-            f"• <b>Week {week['week']}:</b> {week['title']}\n  <i>{week['description']}</i>"
-        )
-
-    message_lines.append("\n" + "─" * 25)
-    
-
-    message_lines.append("⏳ <b>Step 2/2: Hunting down your learning materials...</b>")
-    message_lines.append("<i>I am searching the web via DuckDuckGo for the best documentation, free courses, and YouTube videos matching these weeks. Please hold on a moment...</i>\n")
-    
-    message_lines.append("─" * 25)
-
-    message_lines.append("💡 <b>Available Study Commands:</b>")
-    message_lines.append("📝 /quiz - Test your understanding on the current module")
-    message_lines.append("📈 /progress - Check your overall roadmap completion status")
-    message_lines.append("🚀 /start - Reset and choose a completely new topic")
-
-    response_message = "\n".join(message_lines)
-
-    return {
-        "curriculum": curriculum,
-        "phase": "learning",
-        "response_message": response_message
-    }
+        return state

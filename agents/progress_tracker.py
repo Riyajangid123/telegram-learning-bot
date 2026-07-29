@@ -1,81 +1,85 @@
-from dotenv import load_dotenv
+from langchain_core.prompts import ChatPromptTemplate
+from agents.llm import LLM
+from schema.schema import ProgressReport
 from graph.state import LearningState
+from database.queries import save_progress
 
-load_dotenv()
+class ProgressTrackerAgent:
+    def __init__(self):
+        self.llm=LLM().llm()
+        self.progress_prompt = ChatPromptTemplate.from_template("""
+            You are an AI Learning Progress Tracker.
 
-from database.queries import (
-    get_quiz_attempts_by_user,
-    get_curriculum_by_user,
-    get_user_by_telegram_id,
-    mark_module_completed
-)
+            Inputs
 
-def progress_tracker_agent(state: LearningState):
-    telegram_id = state["telegram_id"]
-    current_module = state.get("current_module", 1)
-    quiz_score = state.get("quiz_score", 0)
-    quiz_total = state.get("quiz_total", 5)
+            Skill Assessment:
+            {assessment}
 
-    user = get_user_by_telegram_id(telegram_id)
-    if not user:
-        return {"response_message": "❌ User not found."}
+            Curriculum:
+            {curriculum}
 
-    user_id = user["id"]
-    curriculum = get_curriculum_by_user(user_id)
+            Quiz Evaluation:
+            {quiz_evaluation}
 
-    if not curriculum:
-        return {"response_message": "❌ No learning path setup found."}
+            Analyze learner progress.
 
-    current_week = next(
-        (w for w in curriculum if w["week_number"] == current_module),
-        None
-    )
+            Determine
 
-    passed = quiz_score >= (quiz_total * 0.6)
+            - mastery
+            - interview readiness
+            - completed topics
+            - pending topics
+            - weak topics
+            - strong topics
+            - next topics to learn
 
-    if passed and current_week and not current_week.get("is_completed", False):
-        mark_module_completed(current_week["id"])
-        current_week["is_completed"] = True  
-
-    completed = [w for w in curriculum if w.get("is_completed", False)]
-    completed_weeks = len(completed)
-    total_weeks = len(curriculum)
-
-    
-    progress = (completed_weeks / total_weeks) * 100 if total_weeks > 0 else 0
-
-    
-    attempts = get_quiz_attempts_by_user(user_id)
-    avg_score = 0
-    if attempts:
-        valid_attempts = 0
-        total_percentage = 0
-        for a in attempts:
-            if a.get("total", 0) > 0:  
-                total_percentage += (a["score"] / a["total"]) * 100
-                valid_attempts += 1
+            Return ONLY the Pydantic schema.""")
         
-        if valid_attempts > 0:
-            avg_score = total_percentage / valid_attempts
+        self.chain = (
+            self.progress_prompt
+            | self.llm.with_structured_output(ProgressReport)
+        )
+
+    def track_progress(self, state:LearningState):
+
+        report = self.chain.invoke({
+
+            "assessment": state["skill_assessment"],
+
+            "curriculum": state["curriculum"],
+
+            "quiz_evaluation": state["quiz_evaluation"]
+
+        })
 
 
-    if passed and current_module < total_weeks:
-        next_module = current_module + 1
-    else:
-        next_module = current_module
+        state["progress"]=report
+        state["response_message"] = f"""
+        📊 Progress Report
 
-    response_message = (
-        f"📊 <b>Progress Report</b>\n\n"
-        f"📈 <b>Progress:</b> {progress:.0f}%\n"
-        f"✅ <b>Completed Modules:</b> {completed_weeks}/{total_weeks}\n"
-        f"📝 <b>Average Quiz Score:</b> {avg_score:.0f}%\n\n"
-        f"{'🎉 <b>Module passed!</b> Moving to the next week.' if passed else '❌ <b>Score below 60%.</b> Please review materials and retry.'}\n\n"
-        f"🎯 <b>Next Module:</b> Week {next_module}"
-    )
+        🎯 Current Level: {report.current_level}
 
-    return {
-        "completed_modules": [w["week_number"] for w in completed],
-        "progress_report": response_message,
-        "current_module": next_module,
-        "response_message": response_message
-    }
+        📈 Overall Progress: {report.overall_progress:.1f}%
+
+        💼 Interview Readiness: {report.interview_readiness:.1f}%
+
+        ✅ Strong Topics:
+        {chr(10).join('- ' + t for t in report.strong_topics)}
+
+        📚 Topics to Improve:
+        {chr(10).join('- ' + t for t in report.weak_topics)}
+
+        ➡️ Next Topics:
+        {chr(10).join('- ' + t for t in report.next_topics)}
+
+        💡 Recommendation:
+        {report.recommendation}
+        """
+        save_progress(
+            user_id=state["user_id"],
+            topic_id=state["topic_id"],
+            report=report.model_dump()         
+        )
+
+        print("Progress",state["progress_report"])
+        return state

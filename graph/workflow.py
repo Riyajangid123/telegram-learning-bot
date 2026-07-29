@@ -1,138 +1,181 @@
-from typing import TypedDict, Annotated
 from langgraph.graph import StateGraph, START, END
-from agents.skill_assessment import skill_assessment_agent
-from agents.curriculum_planner import curriculum_planner_agent
-from agents.resource_finder import resource_finder_agent, tool_node  
-from agents.quiz_generation import quiz_generation_agent
-from agents.quiz_eveluator import quiz_evaluator_agent  
-from agents.progress_tracker import progress_tracker_agent
-from langgraph.prebuilt import tools_condition
+from langgraph.prebuilt import ToolNode, tools_condition
+
 from graph.state import LearningState
-from database.queries import get_user_by_telegram_id, get_curriculum_by_user
 
-def router_node(state: LearningState):
-    """Determines where to route the incoming Telegram message while preserving state."""
-    user_message = state.get("user_message", "").strip().lower()
-    telegram_id = state.get("telegram_id")
-    
-    state["user_message"] = user_message
-    
-    if user_message == "/quiz":
-        state["response_message"] = "Loading quiz..."
-        return state
-    if user_message == "/progress":
-        state["response_message"] = "Loading progress report..."
-        return state
-        
-    return state
+from agents.welcome import welcome_agent
+from agents.AssessmentQuestionGenerator import AssessmentQuestionGeneratorAgent
+from agents.skill_assessment_evaluator import SkillAssessmentEvaluator
+from agents.curriculum_planner import CurriculumPlanner
+from agents.resource_finder import ResourceFinderAgent,tools
+from agents.quiz_generation import QuizGenerationAgent
+from agents.quiz_eveluator import QuizEvaluationAgent
+from agents.progress_tracker import ProgressTrackerAgent
 
 
-def welcome_node(state: LearningState):
-    state["phase"] = "awaiting_topic"
-    state["response_message"] = """👋 Welcome to AI Learning Bot!
-
-I'm your personal AI learning assistant.
-
-🚀 Here's how I can help you:
-✅ Assess your current skill level
-✅ Create a personalized learning roadmap
-✅ Recommend resources
-✅ Generate quizzes
-✅ Track progress
-
-📚 <b>What would you like to learn today?</b>
-
-Examples:
-• Python
-• Machine Learning
-• SQL
-• Data Structures"""
-    return state
+tool_node = ToolNode(tools)
 
 
-def route_entry(state):
-    user_message = state.get("user_message", "").strip().lower()
+# ----------------------------
+# Router
+# ----------------------------
+def router(state: LearningState):
 
-    if user_message == "/start":
+    message = state["user_message"].strip().lower()
+    phase = state.get("phase", "")
+
+    if message == "/start":
         return "welcome"
-    if user_message == "/quiz":
+
+    elif message == "/quiz":
         return "quiz_generation"
-    if user_message == "/progress":
-        return "track_progress"
 
-    phase = state.get("phase")
+    elif message == "/progress":
+        return "progress_tracker"
 
-    if phase == "quiz_evaluation":
+    elif phase == "awaiting_topic":
+        return "assessment_questions"
+
+    elif phase == "awaiting_assessment_answers":
+        return "skill_assessment"
+
+    elif phase == "awaiting_quiz_answers":
         return "quiz_evaluation"
 
-    if phase in ["awaiting_topic", "assessment"]:
-        return "skill_assessment"
-        
-    if phase == "learning":
-        return "curriculum_planner"
-
-    return "welcome"
-
-
-def route_assessment(state):
-    phase = state.get("phase")
-    
-    if phase == "assessment_complete":
-        return END 
-        
-    if phase == "learning":
-        return "curriculum_planner"
-        
     return END
 
 
-def build_graph():
-    workflow = StateGraph(LearningState)
+# ----------------------------
+# Graph
+# ----------------------------
+workflow = StateGraph(LearningState)
 
-    workflow.add_node("router", router_node)
-    workflow.add_node("welcome", welcome_node)
-    workflow.add_node("skill_assessment", skill_assessment_agent)
-    workflow.add_node("curriculum_planner", curriculum_planner_agent)
-    workflow.add_node("resource_finder", resource_finder_agent)
-    workflow.add_node("tools", tool_node)          
-    workflow.add_node("quiz_generation", quiz_generation_agent)
-    workflow.add_node("quiz_evaluation", quiz_evaluator_agent)  
-    workflow.add_node("track_progress", progress_tracker_agent)
 
-    workflow.add_edge(START, "router")
-    
-    workflow.add_conditional_edges(
-        "router",
-        route_entry,
-        {   
-            "welcome": "welcome",
-            "skill_assessment": "skill_assessment",
-            "curriculum_planner": "curriculum_planner",
-            "quiz_generation": "quiz_generation",
-            "quiz_evaluation": "quiz_evaluation",  
-            "track_progress": "track_progress"
-        }
-    )
-    
-    workflow.add_conditional_edges(
-        "skill_assessment",
-        route_assessment,
-        {
-            "curriculum_planner": "curriculum_planner",
-            END: END
-        }
-    )
-    
+workflow.add_node("welcome", welcome_agent)
 
-    workflow.add_edge("curriculum_planner", "resource_finder")
-    workflow.add_conditional_edges("resource_finder", tools_condition) 
-    workflow.add_edge("tools", "resource_finder")  
-    workflow.add_edge("resource_finder", END) 
-    
+workflow.add_node(
+    "assessment_questions",
+    AssessmentQuestionGeneratorAgent().assessment_question_generator
+)
 
-    workflow.add_edge("welcome", END)
-    workflow.add_edge("quiz_generation", END)
-    workflow.add_edge("quiz_evaluation", END)  
-    workflow.add_edge("track_progress", END)
+workflow.add_node(
+    "skill_assessment",
+    SkillAssessmentEvaluator().skill_assessment_evaluate
+)
 
-    return workflow.compile()
+workflow.add_node(
+    "curriculum_planner",
+    CurriculumPlanner().curriculum_generation
+)
+
+workflow.add_node(
+    "resource_finder",
+    ResourceFinderAgent().resource_finder_agent
+)
+
+workflow.add_node(
+    "tools",
+    tool_node
+)
+
+workflow.add_node(
+    "quiz_generation",
+    QuizGenerationAgent().quiz_generation
+)
+
+workflow.add_node(
+    "quiz_evaluation",
+    QuizEvaluationAgent().evaluate
+)
+
+workflow.add_node(
+    "progress_tracker",
+    ProgressTrackerAgent().track_progress
+)
+
+
+# ----------------------------
+# Start
+# ----------------------------
+workflow.add_conditional_edges(
+    START,
+    router,
+    {
+        "welcome": "welcome",
+        "assessment_questions": "assessment_questions",
+        "skill_assessment": "skill_assessment",
+        "quiz_generation": "quiz_generation",
+        "quiz_evaluation": "quiz_evaluation",
+        "progress_tracker": "progress_tracker",
+        END: END,
+    },
+)
+
+
+# ----------------------------
+# Welcome
+# ----------------------------
+workflow.add_edge(
+    "welcome",
+    END,
+)
+
+
+# ----------------------------
+# Assessment Flow
+# ----------------------------
+workflow.add_edge(
+    "assessment_questions",
+    END,
+)
+
+workflow.add_edge(
+    "skill_assessment",
+    "curriculum_planner",
+)
+
+workflow.add_edge(
+    "curriculum_planner",
+    "resource_finder",
+)
+
+
+# ----------------------------
+# Resource Finder + Tools
+# ----------------------------
+workflow.add_conditional_edges(
+    "resource_finder",
+    tools_condition,
+)
+
+workflow.add_edge(
+    "tools",
+    "resource_finder",
+)
+
+workflow.add_edge(
+    "resource_finder",
+    END,
+)
+
+
+# ----------------------------
+# Quiz Flow
+# ----------------------------
+workflow.add_edge(
+    "quiz_generation",
+    END,
+)
+
+workflow.add_edge(
+    "quiz_evaluation",
+    "progress_tracker",
+)
+
+workflow.add_edge(
+    "progress_tracker",
+    END,
+)
+
+
+build_graph = workflow.compile()
