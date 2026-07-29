@@ -159,7 +159,6 @@ class ResourceFinderAgent:
         msg = "📚 <b>Learning Resources</b>\n\n"
 
         for topic in resource_plan.resources:
-
             msg += f"📌 <b>{topic.topic}</b>\n\n"
 
             if topic.articles:
@@ -194,15 +193,15 @@ class ResourceFinderAgent:
 
             msg += "\n"
 
-            msg += (
+        msg += (
                 "\n━━━━━━━━━━━━━━━━━━\n\n"
                 "✅ These resources are organized in the same order as your roadmap.\n\n"
                 "Study each topic one by one.\n\n"
                 "When you're ready, type <b>/quiz</b> to test your knowledge."
             )
 
-            state["response_message"] = msg
+        state["response_message"] = msg
 
-            state["phase"] = "learning"
+        state["phase"] = "learning"
 
-            return state
+        return state
