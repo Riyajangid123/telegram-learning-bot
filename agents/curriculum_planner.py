@@ -48,32 +48,41 @@ class CurriculumPlanner:
             )
 
             state["curriculum_id"] = curriculum_id
-            roadmap = []
+            
+            roadmap = f"""
+            🎉 <b>Great job!</b>
+
+            Your assessment has been completed successfully.
+
+            Based on your responses, I've identified your current skill level as:
+
+            <b>{result.target_level}</b>
+
+            📚 <b>Your Personalized Learning Roadmap</b>
+
+            """
 
             for i, topic in enumerate(result.learning_path, start=1):
-                roadmap.append(
-                    f"{i}. {topic.topic} ({topic.difficulty})"
+
+                roadmap += (
+                    f"<b>{i}. {topic.topic}</b>\n"
+                    f"📈 Difficulty: {topic.difficulty}\n"
+                    f"🎯 Goal: {topic.reason}\n"
+                    f"⏳ Estimated Time: {topic.estimated_hours} hours\n\n"
                 )
 
-            state["response_message"] = f"""
-            🎉 Your personalized curriculum is ready!
+            roadmap += (
+                "🚀 <b>What's Next?</b>\n\n"
+                "I'll help you learn each topic step by step with carefully selected resources.\n\n"
+                "📖 Type <b>/resources</b> to receive:\n"
+                "• Official documentation\n"
+                "• Best YouTube tutorials\n"
+                "• Free online courses\n\n"
+                "Let's begin your learning journey! 🌟"
+            )
 
-            Target Level: {result.target_level}
-
-            Roadmap
-
-            {chr(10).join(roadmap)}
-
-            Estimated Hours: {result.total_estimated_hours}
-
-            Commands
-
-            /quiz → Take a quiz
-
-            I'm now finding the best articles, videos and free courses for each topic...
-
-            Good luck with your learning journey! 🚀
-            """
+            state["response_message"] = roadmap
+            state["phase"] = "curriculum_ready"
 
         except Exception as e:
             print(f"Curriculum generation failed: {e}")

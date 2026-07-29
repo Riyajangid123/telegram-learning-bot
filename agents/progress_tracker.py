@@ -55,26 +55,30 @@ class ProgressTrackerAgent:
 
         state["progress"]=report
         state["response_message"] = f"""
-        📊 Progress Report
+        📊 <b>Your Learning Progress</b>
 
-        🎯 Current Level: {report.current_level}
+        ✅ Mastery: {report.mastery_level}
 
-        📈 Overall Progress: {report.overall_progress:.1f}%
+        🏅 Interview Readiness:
+        {report.interview_readiness}
 
-        💼 Interview Readiness: {report.interview_readiness:.1f}%
+        💪 Strong Topics:
+        {', '.join(report.strong_topics)}
 
-        ✅ Strong Topics:
-        {chr(10).join('- ' + t for t in report.strong_topics)}
+        ⚠️ Weak Topics:
+        {', '.join(report.weak_topics)}
 
-        📚 Topics to Improve:
-        {chr(10).join('- ' + t for t in report.weak_topics)}
+        📚 Completed Topics:
+        {', '.join(report.completed_topics)}
 
-        ➡️ Next Topics:
-        {chr(10).join('- ' + t for t in report.next_topics)}
+        📖 Next Topics:
+        {', '.join(report.next_topics)}
 
-        💡 Recommendation:
-        {report.recommendation}
-        """
+        📝 Summary:
+        {report.summary}
+
+        Keep learning! 🚀"""
+        
         save_progress(
             user_id=state["user_id"],
             topic_id=state["topic_id"],

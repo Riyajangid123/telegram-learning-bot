@@ -137,14 +137,38 @@ class ResourceFinderAgent:
 
         state["phase"] = "idle"
 
-        state["response_message"] = f"""
-            ✅ Skill Level: {state['skill_assessment'].level}
+        msg = "📚 <b>Learning Resources</b>\n\n"
 
-            Your personalized roadmap is ready.
+        for topic in resource_plan.resources:
 
-            Use /quiz whenever you're ready to test yourself.
+            msg += f"━━━━━━━━━━━━━━━\n"
+            msg += f"📌 <b>{topic.topic}</b>\n\n"
 
-            Happy Learning 🚀
-            """
+            if topic.articles:
+                msg += "📄 <b>Articles</b>\n"
+                for article in topic.articles:
+                    msg += f"• <a href='{article.url}'>{article.title}</a>\n"
+
+            if topic.youtube_videos:
+                msg += "\n🎥 <b>YouTube</b>\n"
+                for video in topic.youtube_videos:
+                    msg += f"• <a href='{video.url}'>{video.title}</a>\n"
+
+            if topic.courses:
+                msg += "\n🎓 <b>Courses</b>\n"
+                for course in topic.courses:
+                    msg += f"• <a href='{course.url}'>{course.title}</a>\n"
+
+            msg += "\n"
+
+        msg += (
+            "\n✅ You're all set with your learning materials!\n\n"
+            "Whenever you feel ready, type <b>/quiz</b> to test your understanding of the curriculum.\n\n"
+            "Good luck with your learning! 🚀"
+        )
+
+        state["response_message"] = msg
+
+        state["phase"] = "learning"
 
         return state

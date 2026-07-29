@@ -9,6 +9,8 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from graph.workflow import build_graph
 from graph.state import LearningState
@@ -28,9 +30,6 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 workflow = build_graph()
 
 user_sessions = {}
-
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
 
 def run_dummy_server():
     port = int(os.environ.get("PORT", 10000))

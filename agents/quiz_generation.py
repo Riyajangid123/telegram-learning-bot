@@ -65,14 +65,17 @@ class QuizGenerationAgent:
             formatted_quiz += "\n"
 
         formatted_quiz += (
-            "Reply with your answers in order.\n\n"
-            "Example:\n"
-            "1. B\n"
-            "2. A\n"
-            "3. def add(a,b): return a+b"
+            "\n📝 Reply with your answers in this format:\n\n"
+            "1. A\n"
+            "2. C\n"
+            "3. Python uses indentation\n"
+            "4. B\n"
+            "...\n\n"
+            "After you submit your answers, I'll evaluate them and show your progress."
         )
 
         state["response_message"] = formatted_quiz
+        state["phase"] = "awaiting_quiz_answers"
         quiz_id = save_quiz(
             curriculum_id=state["curriculum_id"],
             quiz=quiz.model_dump()               
