@@ -98,101 +98,101 @@ class ResourceFinderAgent:
             | self.llm.with_structured_output(ResourcePlan)
         )
 
-        def resource_finder_agent(self, state: LearningState):
+    def resource_finder_agent(self, state: LearningState):
 
-            curriculum = state["curriculum"]
+        curriculum = state["curriculum"]
 
-            if curriculum is None:
+        if curriculum is None:
 
-                state["response_message"] = (
+            state["response_message"] = (
                     "Curriculum not found."
-                )
+            )
 
-                return state
+            return state
 
-            all_results = []
+        all_results = []
 
-            for topic in curriculum.learning_path:
+        for topic in curriculum.learning_path:
 
-                print(f"Searching resources for {topic.topic}")
+            print(f"Searching resources for {topic.topic}")
 
-                time.sleep(1)
+            time.sleep(1)
 
-                articles = search_articles(topic.topic)
+            articles = search_articles(topic.topic)
 
-                youtube = youtube_search(topic.topic)
+            youtube = youtube_search(topic.topic)
 
-                courses = search_courses(topic.topic)
+            courses = search_courses(topic.topic)
 
-                all_results.append({
+            all_results.append({
 
-                    "topic": topic.topic,
+                "topic": topic.topic,
 
-                    "difficulty": topic.difficulty,
+                "difficulty": topic.difficulty,
 
-                    "articles": articles,
+                "articles": articles,
 
-                    "youtube": youtube,
+                "youtube": youtube,
 
-                    "courses": courses
-
-                })
-
-            resource_plan = self.chain.invoke({
-
-                "curriculum": curriculum.model_dump(),
-
-                "search_results": all_results
+                "courses": courses
 
             })
 
-            state["resources"] = resource_plan
+        resource_plan = self.chain.invoke({
 
-            save_resources(
+            "curriculum": curriculum.model_dump(),
 
-                curriculum_id=state["curriculum_id"],
+            "search_results": all_results
 
-                resources=resource_plan.model_dump()
+        })
 
-            )
+        state["resources"] = resource_plan
 
-            msg = "📚 <b>Learning Resources</b>\n\n"
+        save_resources(
 
-            for topic in resource_plan.resources:
+            curriculum_id=state["curriculum_id"],
 
-                msg += f"📌 <b>{topic.topic}</b>\n\n"
+            resources=resource_plan.model_dump()
 
-                if topic.articles:
+        )
 
-                    msg += "📄 <b>Articles</b>\n"
+        msg = "📚 <b>Learning Resources</b>\n\n"
 
-                    for a in topic.articles:
+        for topic in resource_plan.resources:
 
-                        msg += (
-                            f"• <a href='{a.url}'>{a.title}</a>\n"
-                        )
+            msg += f"📌 <b>{topic.topic}</b>\n\n"
 
-                if topic.youtube_videos:
+            if topic.articles:
 
-                    msg += "\n🎥 <b>YouTube</b>\n"
+                msg += "📄 <b>Articles</b>\n"
 
-                    for y in topic.youtube_videos:
+                for a in topic.articles:
 
-                        msg += (
+                    msg += (
+                        f"• <a href='{a.url}'>{a.title}</a>\n"
+                    )
+
+            if topic.youtube_videos:
+
+                msg += "\n🎥 <b>YouTube</b>\n"
+
+                for y in topic.youtube_videos:
+
+                    msg += (
                             f"• <a href='{y.url}'>{y.title}</a>\n"
-                        )
+                    )
 
-                if topic.courses:
+            if topic.courses:
 
-                    msg += "\n🎓 <b>Courses</b>\n"
+                msg += "\n🎓 <b>Courses</b>\n"
 
-                    for c in topic.courses:
+                for c in topic.courses:
 
-                        msg += (
+                    msg += (
                             f"• <a href='{c.url}'>{c.title}</a>\n"
-                        )
+                    )
 
-                msg += "\n"
+            msg += "\n"
 
             msg += (
                 "\n━━━━━━━━━━━━━━━━━━\n\n"
