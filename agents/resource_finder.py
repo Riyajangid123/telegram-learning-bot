@@ -7,6 +7,7 @@ from duckduckgo_search import DDGS
 from graph.state import LearningState
 import time
 from database.queries import save_resources
+from langchain_core.messages import ToolMessage
 
 @tool 
 def search_articles(query: str) -> str: 
@@ -99,55 +100,51 @@ class ResourceFinderAgent:
             | self.llm.with_structured_output(ResourcePlan)
         )
 
-    def resource_finder_agent(self,state:LearningState):
+    
+
+    def resource_finder_agent(self, state: LearningState):
+
         if state["curriculum"] is None:
-
-            state["response_message"] = (
-                "Curriculum generation failed. Please try again."
-            )
-
+            state["response_message"] = "Curriculum generation failed."
             return state
-        topics = [
-        {
-            "topic": t.topic,
-            "difficulty": t.difficulty
-        }
-        for t in state["curriculum"].learning_path
+
+        tool_messages = [
+            m for m in state["messages"]
+            if isinstance(m, ToolMessage)
         ]
-        ai_msg = self.tool_chain.invoke({
-        "curriculum": state["curriculum"]
-        })
 
-        tool_output = tool_node.invoke({
-        "messages": [ai_msg]
-        })
+        if not tool_messages:
 
-        messages = tool_output["messages"]
+            ai_msg = self.tool_chain.invoke({
+                "curriculum": state["curriculum"]
+            })
+
+            # Let LangGraph inspect the AIMessage.
+            return {
+                "messages": state["messages"] + [ai_msg]
+            }
 
         resource_plan = self.structured_chain.invoke({
-            "messages":messages
+            "messages": state["messages"]
         })
 
         state["resources"] = resource_plan
+
+        save_resources(
+            curriculum_id=state["curriculum_id"],
+            resources=resource_plan.model_dump()
+        )
+
         state["phase"] = "idle"
 
         state["response_message"] = f"""
-        ✅ Skill Level: {state['skill_assessment'].level}
+            ✅ Skill Level: {state['skill_assessment'].level}
 
-        Your personalized roadmap is ready.
+            Your personalized roadmap is ready.
 
-        Use
+            Use /quiz whenever you're ready to test yourself.
 
-        /quiz
+            Happy Learning 🚀
+            """
 
-        whenever you're ready to test yourself.
-
-        Happy Learning 🚀
-        """
-        save_resources(
-            curriculum_id=state["curriculum_id"],
-            resources=resource_plan.model_dump()   
-        )
-
-        print("resources founded",state["resources"])
         return state

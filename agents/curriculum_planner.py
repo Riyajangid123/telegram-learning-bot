@@ -48,6 +48,32 @@ class CurriculumPlanner:
             )
 
             state["curriculum_id"] = curriculum_id
+            roadmap = []
+
+            for i, topic in enumerate(result.learning_path, start=1):
+                roadmap.append(
+                    f"{i}. {topic.topic} ({topic.difficulty})"
+                )
+
+            state["response_message"] = f"""
+            🎉 Your personalized curriculum is ready!
+
+            Target Level: {result.target_level}
+
+            Roadmap
+
+            {chr(10).join(roadmap)}
+
+            Estimated Hours: {result.total_estimated_hours}
+
+            Commands
+
+            /quiz → Take a quiz
+
+            I'm now finding the best articles, videos and free courses for each topic...
+
+            Good luck with your learning journey! 🚀
+            """
 
         except Exception as e:
             print(f"Curriculum generation failed: {e}")

@@ -84,6 +84,17 @@ Return ONLY the Pydantic schema.
             assessment=assessment.model_dump()   
         )
 
+        state["response_message"] = f"""
+            ✅ Thank you for submitting your answers!
+
+            Your responses have been analyzed successfully.
+
+            🎯 Skill Level: {assessment.level}
+            📊 Overall Score: {assessment.overall_score}/100
+
+            I'm now creating your personalized learning roadmap...
+            """
+
         state["phase"] = "learning_ready"
         print("skill assessment done!")
         return state
