@@ -76,24 +76,23 @@ class ResourceFinderAgent:
             Always call the appropriate tools before answering.
             """)
 
-        self.tool_chain = self.tool_prompt | self.llm.bind_tools(tools)
+        self.tool_llm = self.llm.bind_tools(tools)
 
-        self.format_prompt = ChatPromptTemplate.from_template("""
+        self.tool_chain = self.tool_prompt | self.tool_llm
+
+        self.format_prompt = ChatPromptTemplate.from_messages([
+                (
+                    "system",
+                    """
             You are an AI Resource Organizer.
 
-            Topics:
-            {topic}
+            Use the ToolMessages to build the ResourcePlan.
 
-            Tool Results:
-            {tool_results}
-
-            Convert these search results into the ResourcePlan schema.
-
-            Rules:
-            - Do not invent URLs.
-            - If a category has no resources, return an empty list.
-            - Return ONLY the Pydantic schema.
-            """)
+            Return ONLY the Pydantic schema.
+            """
+                ),
+                ("placeholder", "{messages}")
+            ])
 
         self.structured_chain = (
             self.format_prompt
@@ -116,21 +115,17 @@ class ResourceFinderAgent:
         for t in state["curriculum"].learning_path
         ]
         ai_msg = self.tool_chain.invoke({
-        "topic": topics
+        "curriculum": state["curriculum"]
         })
 
         tool_output = tool_node.invoke({
         "messages": [ai_msg]
         })
 
-        tool_results = "\n\n".join(
-        msg.content
-        for msg in tool_output["messages"]
-        if hasattr(msg, "content")
-        )
+        messages = tool_output["messages"]
+
         resource_plan = self.structured_chain.invoke({
-        "curriculum": state["curriculum"],
-        "tool_results": tool_results
+            "messages":messages
         })
 
         state["resources"] = resource_plan
