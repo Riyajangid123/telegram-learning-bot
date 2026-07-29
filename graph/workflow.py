@@ -1,5 +1,4 @@
 from langgraph.graph import StateGraph, START, END
-from langgraph.prebuilt import ToolNode, tools_condition
 
 from graph.state import LearningState
 
@@ -7,13 +6,10 @@ from agents.welcome import welcome_agent
 from agents.AssessmentQuestionGenerator import AssessmentQuestionGeneratorAgent
 from agents.skill_assessment_evaluator import SkillAssessmentEvaluator
 from agents.curriculum_planner import CurriculumPlanner
-from agents.resource_finder import ResourceFinderAgent,tools
+from agents.resource_finder import ResourceFinderAgent
 from agents.quiz_generation import QuizGenerationAgent
 from agents.quiz_eveluator import QuizEvaluationAgent
 from agents.progress_tracker import ProgressTrackerAgent
-
-
-tool_node = ToolNode(tools)
 
 
 # ----------------------------
@@ -21,7 +17,7 @@ tool_node = ToolNode(tools)
 # ----------------------------
 def router(state: LearningState):
 
-    message = state["user_message"].strip().lower()
+    message = state.get("user_message", "").strip().lower()
     phase = state.get("phase", "")
 
     if message == "/start":
@@ -47,16 +43,22 @@ def router(state: LearningState):
 
     return END
 
-# ----------------------------
-# Graph
-# ----------------------------
-from langgraph.graph import StateGraph, START, END
 
+# ----------------------------
+# Build Graph
+# ----------------------------
 def build_graph():
 
     workflow = StateGraph(LearningState)
 
-    workflow.add_node("welcome", welcome_agent)
+    # ----------------------------
+    # Nodes
+    # ----------------------------
+
+    workflow.add_node(
+        "welcome",
+        welcome_agent
+    )
 
     workflow.add_node(
         "assessment_questions",
@@ -79,11 +81,6 @@ def build_graph():
     )
 
     workflow.add_node(
-        "tools",
-        tool_node
-    )
-
-    workflow.add_node(
         "quiz_generation",
         QuizGenerationAgent().quiz_generation
     )
@@ -98,6 +95,10 @@ def build_graph():
         ProgressTrackerAgent().track_progress
     )
 
+    # ----------------------------
+    # Entry
+    # ----------------------------
+
     workflow.add_conditional_edges(
         START,
         router,
@@ -105,62 +106,72 @@ def build_graph():
             "welcome": "welcome",
             "assessment_questions": "assessment_questions",
             "skill_assessment": "skill_assessment",
+            "resource_finder": "resource_finder",
             "quiz_generation": "quiz_generation",
             "quiz_evaluation": "quiz_evaluation",
             "progress_tracker": "progress_tracker",
             END: END,
-        },
+        }
     )
 
+    # ----------------------------
+    # Welcome
+    # ----------------------------
+
     workflow.add_edge(
-    "welcome",
-    END,
-)
+        "welcome",
+        END
+    )
+
+    # ----------------------------
+    # Assessment
+    # ----------------------------
 
     workflow.add_edge(
         "assessment_questions",
-        END,
+        END
     )
 
     workflow.add_edge(
         "skill_assessment",
-        "curriculum_planner",
+        "curriculum_planner"
     )
 
     workflow.add_edge(
         "curriculum_planner",
-        END,
+        END
     )
 
-    workflow.add_conditional_edges(
-        "resource_finder",
-        tools_condition,
-    )
-
-    workflow.add_edge(
-        "tools",
-        "resource_finder",
-    )
+    # ----------------------------
+    # Resources
+    # ----------------------------
 
     workflow.add_edge(
         "resource_finder",
-        END,
+        END
     )
+
+    # ----------------------------
+    # Quiz
+    # ----------------------------
 
     workflow.add_edge(
         "quiz_generation",
-        END,
+        END
     )
 
     workflow.add_edge(
         "quiz_evaluation",
-        "progress_tracker",
+        "progress_tracker"
     )
+
+    # ----------------------------
+    # Progress
+    # ----------------------------
 
     workflow.add_edge(
         "progress_tracker",
-        END,
+        END
     )
 
     return workflow.compile()
-   
