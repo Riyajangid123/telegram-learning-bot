@@ -29,6 +29,22 @@ workflow = build_graph()
 
 user_sessions = {}
 
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 10000))
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"Bot is running")
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    server.serve_forever()
+
+# Start dummy server in background thread
+threading.Thread(target=run_dummy_server, daemon=True).start()
+
 
 def default_state(user, username) -> LearningState:
     """
