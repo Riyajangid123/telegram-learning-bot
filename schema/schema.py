@@ -111,7 +111,7 @@ class CurriculumPlan(BaseModel):
         description="Ordered learning roadmap."
     )
 
-    capstone_project: CapstoneProject
+    capstone_project: Optional[CapstoneProject] = None
 
     interview_preparation: InterviewPreparation
 

@@ -25,6 +25,9 @@ class CurriculumPlanner:
             - If the learner is Intermediate or above, include an appropriate capstone project.
             - Keep the roadmap practical and realistic.
 
+            If learner level is Beginner,
+            return capstone_project as null.
+
             Return ONLY the Pydantic schema.
             """)
         

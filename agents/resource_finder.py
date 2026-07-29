@@ -101,6 +101,13 @@ class ResourceFinderAgent:
         )
 
     def resource_finder_agent(self,state:LearningState):
+        if state["curriculum"] is None:
+
+            state["response_message"] = (
+                "Curriculum generation failed. Please try again."
+            )
+
+            return state
         topics = [
         {
             "topic": t.topic,
