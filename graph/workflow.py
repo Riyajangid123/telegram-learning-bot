@@ -48,134 +48,90 @@ def router(state: LearningState):
 # ----------------------------
 # Graph
 # ----------------------------
-workflow = StateGraph(LearningState)
+from langgraph.graph import StateGraph, START, END
 
+def build_graph():
 
-workflow.add_node("welcome", welcome_agent)
+    workflow = StateGraph(LearningState)
 
-workflow.add_node(
-    "assessment_questions",
-    AssessmentQuestionGeneratorAgent().assessment_question_generator
-)
+    workflow.add_node("welcome", welcome_agent)
 
-workflow.add_node(
-    "skill_assessment",
-    SkillAssessmentEvaluator().skill_assessment_evaluate
-)
+    workflow.add_node(
+        "assessment_questions",
+        AssessmentQuestionGeneratorAgent().assessment_question_generator
+    )
 
-workflow.add_node(
-    "curriculum_planner",
-    CurriculumPlanner().curriculum_generation
-)
+    workflow.add_node(
+        "skill_assessment",
+        SkillAssessmentEvaluator().skill_assessment_evaluate
+    )
 
-workflow.add_node(
-    "resource_finder",
-    ResourceFinderAgent().resource_finder_agent
-)
+    workflow.add_node(
+        "curriculum_planner",
+        CurriculumPlanner().curriculum_generation
+    )
 
-workflow.add_node(
-    "tools",
-    tool_node
-)
+    workflow.add_node(
+        "resource_finder",
+        ResourceFinderAgent().resource_finder_agent
+    )
 
-workflow.add_node(
-    "quiz_generation",
-    QuizGenerationAgent().quiz_generation
-)
+    workflow.add_node(
+        "tools",
+        tool_node
+    )
 
-workflow.add_node(
-    "quiz_evaluation",
-    QuizEvaluationAgent().evaluate
-)
+    workflow.add_node(
+        "quiz_generation",
+        QuizGenerationAgent().quiz_generation
+    )
 
-workflow.add_node(
-    "progress_tracker",
-    ProgressTrackerAgent().track_progress
-)
+    workflow.add_node(
+        "quiz_evaluation",
+        QuizEvaluationAgent().evaluate
+    )
 
+    workflow.add_node(
+        "progress_tracker",
+        ProgressTrackerAgent().track_progress
+    )
 
-# ----------------------------
-# Start
-# ----------------------------
-workflow.add_conditional_edges(
-    START,
-    router,
-    {
-        "welcome": "welcome",
-        "assessment_questions": "assessment_questions",
-        "skill_assessment": "skill_assessment",
-        "quiz_generation": "quiz_generation",
-        "quiz_evaluation": "quiz_evaluation",
-        "progress_tracker": "progress_tracker",
-        END: END,
-    },
-)
+    workflow.add_conditional_edges(
+        START,
+        router,
+        {
+            "welcome": "welcome",
+            "assessment_questions": "assessment_questions",
+            "skill_assessment": "skill_assessment",
+            "quiz_generation": "quiz_generation",
+            "quiz_evaluation": "quiz_evaluation",
+            "progress_tracker": "progress_tracker",
+            END: END,
+        },
+    )
 
+    workflow.add_edge("welcome", END)
 
-# ----------------------------
-# Welcome
-# ----------------------------
-workflow.add_edge(
-    "welcome",
-    END,
-)
+    workflow.add_edge("assessment_questions", END)
 
+    workflow.add_edge("skill_assessment", "curriculum_planner")
 
-# ----------------------------
-# Assessment Flow
-# ----------------------------
-workflow.add_edge(
-    "assessment_questions",
-    END,
-)
+    workflow.add_edge("curriculum_planner", "resource_finder")
 
-workflow.add_edge(
-    "skill_assessment",
-    "curriculum_planner",
-)
+    workflow.add_conditional_edges(
+        "resource_finder",
+        tools_condition,
+    )
 
-workflow.add_edge(
-    "curriculum_planner",
-    "resource_finder",
-)
+    workflow.add_edge("tools", "resource_finder")
 
+    workflow.add_edge("resource_finder", END)
 
-# ----------------------------
-# Resource Finder + Tools
-# ----------------------------
-workflow.add_conditional_edges(
-    "resource_finder",
-    tools_condition,
-)
+    workflow.add_edge("quiz_generation", END)
 
-workflow.add_edge(
-    "tools",
-    "resource_finder",
-)
+    workflow.add_edge("quiz_evaluation", "progress_tracker")
 
-workflow.add_edge(
-    "resource_finder",
-    END,
-)
+    workflow.add_edge("progress_tracker", END)
 
-
-# ----------------------------
-# Quiz Flow
-# ----------------------------
-workflow.add_edge(
-    "quiz_generation",
-    END,
-)
-
-workflow.add_edge(
-    "quiz_evaluation",
-    "progress_tracker",
-)
-
-workflow.add_edge(
-    "progress_tracker",
-    END,
-)
-
-
-build_graph = workflow.compile()
+    return workflow.compile()
+   
