@@ -190,6 +190,17 @@ def run_bot():
         )
     )
 
+    application.add_handler(CommandHandler("resources", message_handler))
+    application.add_handler(CommandHandler("quiz", message_handler))
+    application.add_handler(CommandHandler("progress", message_handler))
+
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            message_handler,
+        )
+    )
+
     application.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
