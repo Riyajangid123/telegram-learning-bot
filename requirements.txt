@@ -2,8 +2,6 @@ fastapi
 flask
 uvicorn
 
-python-telegram-bot==20.7
-
 langgraph
 langchain
 langchain-groq
@@ -35,3 +33,6 @@ uuid
 python-multipart
 
 python-telegram-bot[webhooks]
+python-telegram-bot==22.8
+httpx>=0.28.1
+ddgs==9.14.4

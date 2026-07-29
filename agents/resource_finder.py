@@ -1,4 +1,4 @@
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 from langchain_core.prompts import ChatPromptTemplate
 
 from schema.schema import ResourcePlan
@@ -9,64 +9,43 @@ from database.queries import save_resources
 
 import time
 
+import time
+from ddgs.exceptions import RatelimitException
+
+def _safe_search(fn, *args, retries=2, delay=3, **kwargs):
+    for attempt in range(retries + 1):
+        try:
+            return fn(*args, **kwargs)
+        except RatelimitException:
+            if attempt < retries:
+                time.sleep(delay * (attempt + 1))  
+            else:
+                return []  
+            
 def search_articles(query: str):
-
-    with DDGS() as ddgs:
-
-        results = list(ddgs.text(query, max_results=2))
-
-    resources = []
-
-    for r in results:
-
-        resources.append({
-            "title": r["title"],
-            "url": r["href"]
-        })
-
-    return resources
-
+    def _do():
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=2))
+        return [{"title": r["title"], "url": r["href"]} for r in results]
+    return _safe_search(_do)
 
 def youtube_search(query: str):
-
-    with DDGS() as ddgs:
-
-        results = list(ddgs.videos(
-            f"{query} tutorial",
-            max_results=2
-        ))
-
-    resources = []
-
-    for r in results:
-
-        resources.append({
-            "title": r["title"],
-            "url": r["content"]
-        })
-
-    return resources
-
+    def _do():
+        with DDGS() as ddgs:
+            results = list(ddgs.videos(f"{query} tutorial", max_results=2))
+        return [{"title": r["title"], "url": r["content"]} for r in results]
+    return _safe_search(_do)
 
 def search_courses(query: str):
+    def _do():
+        with DDGS() as ddgs:
+            results = list(ddgs.text(
+                f"{query} free course site:coursera.org OR site:freecodecamp.org",
+                max_results=2
+            ))
+        return [{"title": r["title"], "url": r["href"]} for r in results]
+    return _safe_search(_do)
 
-    with DDGS() as ddgs:
-
-        results = list(ddgs.text(
-            f"{query} free course site:coursera.org OR site:freecodecamp.org",
-            max_results=2
-        ))
-
-    resources = []
-
-    for r in results:
-
-        resources.append({
-            "title": r["title"],
-            "url": r["href"]
-        })
-
-    return resources
 
 class ResourceFinderAgent:
 
@@ -115,14 +94,15 @@ class ResourceFinderAgent:
         for topic in curriculum.learning_path:
 
             print(f"Searching resources for {topic.topic}")
-
+            
             time.sleep(1)
-
+            
             articles = search_articles(topic.topic)
-
+            time.sleep(1.5)
             youtube = youtube_search(topic.topic)
-
+            time.sleep(1.5)
             courses = search_courses(topic.topic)
+            time.sleep(1.5)
 
             all_results.append({
 

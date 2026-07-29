@@ -174,6 +174,13 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
     )
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    logging.error("Exception while handling update:", exc_info=context.error)
+    if isinstance(update, Update) and update.effective_message:
+        await update.effective_message.reply_text(
+            "⚠️ Something went wrong finding resources — please try /resources again in a moment."
+        )
+
 
 def run_bot():
 
@@ -208,6 +215,8 @@ def run_bot():
         )
     )
 
+     
+    application.add_error_handler(error_handler)
     print("🚀 AI Learning Bot Started")
 
     application.run_polling()
