@@ -28,6 +28,9 @@ class CurriculumPlanner:
                 - If the learner is Beginner, do not assign a capstone project.
                 - If the learner is Intermediate or above, include an appropriate capstone project.
                 - Keep the roadmap practical and realistic.
+                - Topic names in learning_path must be concrete subject-matter topics related to
+                what the learner is trying to learn — never generic assessment terms like
+                "Technical Correctness", "Completeness", "Clarity", or "Practical Understanding".
 
                 If learner level is Beginner,
                 return capstone_project as null.
