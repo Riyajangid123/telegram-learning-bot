@@ -207,14 +207,6 @@ def run_bot():
             message_handler,
         )
     )
-
-    application.add_handler(
-        MessageHandler(
-            filters.TEXT & ~filters.COMMAND,
-            message_handler,
-        )
-    )
-
      
     application.add_error_handler(error_handler)
     print("🚀 AI Learning Bot Started")

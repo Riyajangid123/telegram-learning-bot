@@ -1,4 +1,5 @@
 from ddgs import DDGS
+from ddgs.exceptions import DDGSException, RatelimitException, TimeoutException
 from langchain_core.prompts import ChatPromptTemplate
 
 from schema.schema import ResourcePlan
@@ -8,31 +9,34 @@ from graph.state import LearningState
 from database.queries import save_resources
 
 import time
-
-import time
 from ddgs.exceptions import RatelimitException
 
 def _safe_search(fn, *args, retries=2, delay=3, **kwargs):
     for attempt in range(retries + 1):
         try:
             return fn(*args, **kwargs)
-        except RatelimitException:
+        except (RatelimitException, TimeoutException, DDGSException) as e:
+            print(f"Search failed (attempt {attempt + 1}): {e}")
             if attempt < retries:
-                time.sleep(delay * (attempt + 1))  
+                time.sleep(delay * (attempt + 1))
             else:
-                return []  
+                return []
+        except Exception as e:
+            # Catch-all so one bad backend response never crashes the whole agent
+            print(f"Unexpected search error: {e}")
+            return []
             
 def search_articles(query: str):
     def _do():
         with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=2))
+            results = list(ddgs.text(query, max_results=2, backend="duckduckgo, bing"))
         return [{"title": r["title"], "url": r["href"]} for r in results]
     return _safe_search(_do)
 
 def youtube_search(query: str):
     def _do():
         with DDGS() as ddgs:
-            results = list(ddgs.videos(f"{query} tutorial", max_results=2))
+            results = list(ddgs.videos(f"{query} tutorial", max_results=2, backend="duckduckgo"))
         return [{"title": r["title"], "url": r["content"]} for r in results]
     return _safe_search(_do)
 
@@ -41,7 +45,8 @@ def search_courses(query: str):
         with DDGS() as ddgs:
             results = list(ddgs.text(
                 f"{query} free course site:coursera.org OR site:freecodecamp.org",
-                max_results=2
+                max_results=2,
+                backend="duckduckgo, bing"
             ))
         return [{"title": r["title"], "url": r["href"]} for r in results]
     return _safe_search(_do)
@@ -59,17 +64,21 @@ class ResourceFinderAgent:
         Curriculum:
         {curriculum}
 
-        Search Results:
+        Verified Search Results:
         {search_results}
 
-        Convert these search results into the ResourcePlan schema.
+        Create a ResourcePlan.
 
-        Rules:
+        STRICT RULES:
 
-        - Do not invent URLs.
-        - Keep only high quality resources.
-        - Group resources by topic.
-        - Return ONLY the ResourcePlan schema.
+        1. ONLY use URLs present in Verified Search Results.
+        2. NEVER invent a title.
+        3. NEVER invent a URL.
+        4. If a topic has no articles, return articles=[].
+        5. If a topic has no YouTube videos, return youtube_videos=[].
+        6. If a topic has no courses, return courses=[].
+        7. Every topic from the curriculum MUST appear exactly once.
+        8. Return ONLY the ResourcePlan object.
         """)
 
         self.chain = (
@@ -96,6 +105,7 @@ class ResourceFinderAgent:
             print(f"Searching resources for {topic.topic}")
             
             time.sleep(1)
+
             
             articles = search_articles(topic.topic)
             time.sleep(1.5)
@@ -103,6 +113,7 @@ class ResourceFinderAgent:
             time.sleep(1.5)
             courses = search_courses(topic.topic)
             time.sleep(1.5)
+            print("Search completed")
 
             all_results.append({
 
@@ -118,13 +129,20 @@ class ResourceFinderAgent:
 
             })
 
+            print(all_results)
+
+        print("Calling LLM...")
+
         resource_plan = self.chain.invoke({
 
-            "curriculum": curriculum.model_dump(),
+            "curriculum": curriculum,
 
             "search_results": all_results
 
         })
+
+        print("LLM returned")
+        print(resource_plan)
 
         state["resources"] = resource_plan
 
@@ -135,6 +153,8 @@ class ResourceFinderAgent:
             resources=resource_plan.model_dump()
 
         )
+
+        print("Saved")
 
         msg = "📚 <b>Learning Resources</b>\n\n"
 
