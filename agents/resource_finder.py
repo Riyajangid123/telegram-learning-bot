@@ -29,7 +29,7 @@ def _safe_search(fn, *args, retries=2, delay=3, **kwargs):
 def search_articles(query: str):
     def _do():
         with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=2, backend="duckduckgo, bing"))
+            results = list(ddgs.text(query, max_results=2, backend="duckduckgo, brave"))
         return [{"title": r["title"], "url": r["href"]} for r in results]
     return _safe_search(_do)
 
@@ -46,11 +46,10 @@ def search_courses(query: str):
             results = list(ddgs.text(
                 f"{query} free course site:coursera.org OR site:freecodecamp.org",
                 max_results=2,
-                backend="duckduckgo, bing"
+                backend="duckduckgo, brave"
             ))
         return [{"title": r["title"], "url": r["href"]} for r in results]
     return _safe_search(_do)
-
 
 class ResourceFinderAgent:
 
