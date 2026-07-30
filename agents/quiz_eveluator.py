@@ -48,10 +48,13 @@ class QuizEvaluationAgent:
         })
 
         state["quiz_evaluation"] = evaluation
+        
+        percentage = round((evaluation.score / evaluation.total_questions) * 100, 1) if evaluation.total_questions else 0
+
         state["response_message"] = (
             f"🎉 Great job completing the quiz!\n\n"
             f"🏆 Score: {evaluation.score}/{evaluation.total_questions}\n"
-            f"📈 Accuracy: {evaluation.percentage}%\n\n"
+            f"📈 Accuracy: {percentage}%\n\n"
             f"Now type <b>/progress</b> to view your complete learning report, strengths, weak areas, and recommendations."
         )
 

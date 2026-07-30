@@ -11,13 +11,25 @@ class QuizGenerationAgent:
         self.quiz_prompt = ChatPromptTemplate.from_template("""
             You are an AI Quiz Generation Agent.
 
-            Generate a quiz from the provided curriculum.
+            Generate a quiz based STRICTLY on the topics in the curriculum's learning_path below.
 
             Curriculum:
             {curriculum}
 
-            Rules:
-            - Questions must come only from the curriculum.
+            CRITICAL RULES:
+            - Every question's `topic` field MUST be an EXACT topic name taken from
+              curriculum.learning_path — do not invent, generalize, or substitute topics.
+            - Do NOT create questions about generic categories like "Completeness",
+              "Clarity", "Technical Correctness", or "Practical Understanding" unless
+              one of those exact strings appears as a topic name in curriculum.learning_path.
+              These are assessment-evaluation categories, not learning topics — never
+              use them as quiz topics.
+            - Only ask about concepts, skills, and knowledge areas that are explicitly
+              part of the curriculum's learning_path topics.
+            - Distribute questions across the curriculum topics — cover each topic at
+              least once if total_questions allows.
+
+            Question rules:
             - Match the learner's skill level when choosing question type:
               - Beginner topics: Mostly MCQs.
               - Intermediate topics: MCQs + Coding.
@@ -27,12 +39,11 @@ class QuizGenerationAgent:
             - MCQs must contain exactly four options.
             - Include a short explanation.
             - Difficulty should gradually increase across questions.
-            - Every question should belong to one curriculum topic.
+            - Every question should belong to exactly one curriculum topic (from learning_path).
 
             IMPORTANT — The `difficulty` field on each question MUST be
             exactly one of these three literal strings: "Easy", "Medium", "Hard".
-            Do NOT use "Beginner", "Intermediate", or "Advanced" for this field —
-            those are curriculum-level terms, not valid values here.
+            Do NOT use "Beginner", "Intermediate", or "Advanced" for this field.
             Map curriculum difficulty to question difficulty like this:
               - Beginner topic → mostly "Easy", some "Medium"
               - Intermediate topic → mostly "Medium", some "Hard"
@@ -40,7 +51,7 @@ class QuizGenerationAgent:
 
             Return ONLY the Pydantic schema.
             """)
-
+        
         self.chain = (
             self.quiz_prompt
             | self.llm.with_structured_output(Quiz)
