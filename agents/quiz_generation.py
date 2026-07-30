@@ -18,16 +18,25 @@ class QuizGenerationAgent:
 
             Rules:
             - Questions must come only from the curriculum.
-            - Match the learner's skill level.
-            - Beginner: Mostly MCQs.
-            - Intermediate: MCQs + Coding.
-            - Advanced: Coding + Scenario questions.
+            - Match the learner's skill level when choosing question type:
+              - Beginner topics: Mostly MCQs.
+              - Intermediate topics: MCQs + Coding.
+              - Advanced topics: Coding + Scenario questions.
             - Do not repeat questions.
             - Coding questions must not contain options.
             - MCQs must contain exactly four options.
             - Include a short explanation.
-            - Difficulty should gradually increase.
+            - Difficulty should gradually increase across questions.
             - Every question should belong to one curriculum topic.
+
+            IMPORTANT — The `difficulty` field on each question MUST be
+            exactly one of these three literal strings: "Easy", "Medium", "Hard".
+            Do NOT use "Beginner", "Intermediate", or "Advanced" for this field —
+            those are curriculum-level terms, not valid values here.
+            Map curriculum difficulty to question difficulty like this:
+              - Beginner topic → mostly "Easy", some "Medium"
+              - Intermediate topic → mostly "Medium", some "Hard"
+              - Advanced topic → mostly "Hard"
 
             Return ONLY the Pydantic schema.
             """)

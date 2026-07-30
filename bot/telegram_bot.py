@@ -147,17 +147,32 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     state["user_message"] = message
 
-    # User entered topic after /start
     if state["phase"] == "awaiting_topic":
-
         state["topic"] = message
-
-        topic_id = create_learning_topic(
-            state["user_id"],
-            message,
-        )
-
+        topic_id = create_learning_topic(state["user_id"], message)
         state["topic_id"] = topic_id
+
+    if message == "/resources":
+        await update.message.reply_text(
+            "🔎 <b>Searching for the best resources for you...</b>\n\n"
+            "📄 Looking through articles\n"
+            "🎥 Finding YouTube tutorials\n"
+            "🎓 Checking free courses\n\n"
+            "This may take a moment ⏳",
+            parse_mode="HTML",
+        )
+    elif message == "/quiz":
+        await update.message.reply_text(
+            "📝 <b>Generating your quiz...</b>\n\n"
+            "Crafting questions tailored to your curriculum ✍️",
+            parse_mode="HTML",
+        )
+    elif message == "/progress":
+        await update.message.reply_text(
+            "📊 <b>Analyzing your progress...</b>\n\n"
+            "Reviewing your assessment, curriculum, and quiz results 🔍",
+            parse_mode="HTML",
+        )
 
     result = workflow.invoke(state)
 

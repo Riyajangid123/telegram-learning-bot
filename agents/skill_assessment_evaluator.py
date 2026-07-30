@@ -12,51 +12,61 @@ class SkillAssessmentEvaluator:
         self.llm = LLM().llm()
 
         self.prompt = ChatPromptTemplate.from_template("""
-You are an expert AI Skill Assessment Agent.
+        You are an expert AI Skill Assessment Agent.
 
-Evaluate the learner.
+        Evaluate the learner.
 
-Topic:
-{topic}
+        Topic:
+        {topic}
 
-Questions:
-{questions}
+        Questions:
+        {questions}
 
-User Answers:
-{answers}
+        User Answers:
+        {answers}
 
-Assess:
+        Assess:
 
-1. Technical correctness
-2. Completeness
-3. Clarity
-4. Practical understanding
+        1. Technical correctness
+        2. Completeness
+        3. Clarity
+        4. Practical understanding
 
-Determine:
+        Determine:
 
-- Skill level
-- Overall score
-- Strengths
-- Areas of improvement
-- Summary
-- Confidence
+        - Skill level
+        - Overall score
+        - Strengths
+        - Areas of improvement
+        - Summary
+        - Confidence
 
-Rules:
+        Rules:
 
-- Be objective.
-- Do not hallucinate.
-- Give credit only for demonstrated knowledge.
-- Skill level must be exactly one of:
+        - Be objective. Base every judgment strictly on the User Answers provided above —
+        never assume competence that wasn't demonstrated.
+        - Do not hallucinate.
+        - Give credit only for demonstrated knowledge.
+        - CRITICAL: If User Answers is empty, blank, missing, contains only placeholder
+        text, or does not actually answer the questions asked, you MUST NOT default
+        to "Intermediate" or any other mid-level guess. In this case:
+            - Set skill_level to "Beginner"
+            - Set score to 0
+            - Set confidence to "Low"
+            - State clearly in the summary that no valid answers were provided,
+            so assessment could not be meaningfully performed.
+        - Do not treat an unanswered or skipped question as partial credit.
+        - Skill level must be exactly one of:
 
-Beginner
-Intermediate
-Advanced
-Expert
+        Beginner
+        Intermediate
+        Advanced
+        Expert
 
-- Score must be between 0 and 100.
+        - Score must be between 0 and 100.
 
-Return ONLY the Pydantic schema.
-""")
+        Return ONLY the Pydantic schema.
+        """)
 
         self.chain = (
             self.prompt

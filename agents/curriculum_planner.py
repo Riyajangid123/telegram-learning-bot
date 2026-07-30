@@ -9,35 +9,49 @@ class CurriculumPlanner:
         self.llm = LLM().llm()
 
         self.prompt = ChatPromptTemplate.from_template("""
-            You are an expert AI Curriculum Planner.
+                You are an expert AI Curriculum Planner.
 
-            Create a personalized learning roadmap based on the following skill assessment.
+                Create a personalized learning roadmap based on the following skill assessment.
 
-            Skill Assessment:
-            {skill_assessment}
+                Skill Assessment:
+                {skill_assessment}
 
-            Guidelines:
-            - Tailor the curriculum according to the learner's current level.
-            - Prioritize weak areas first.
-            - Arrange topics from foundational to advanced.
-            - Include learning objectives and practice tasks.
-            - If the learner is Beginner, do not assign a capstone project.
-            - If the learner is Intermediate or above, include an appropriate capstone project.
-            - Keep the roadmap practical and realistic.
+                Guidelines:
+                - Base the target_level STRICTLY on the evidence in the skill assessment above — 
+                  do not default to "Intermediate" as a safe guess. If the assessment indicates 
+                  weak/beginner-level understanding, set target_level to "Beginner"; if it indicates 
+                  strong understanding, set it to "Advanced" or "Expert" as appropriate.
+                - Tailor the curriculum according to the learner's current level.
+                - Prioritize weak areas first.
+                - Arrange topics from foundational to advanced.
+                - Include learning objectives and practice tasks.
+                - If the learner is Beginner, do not assign a capstone project.
+                - If the learner is Intermediate or above, include an appropriate capstone project.
+                - Keep the roadmap practical and realistic.
 
-            If learner level is Beginner,
-            return capstone_project as null.
+                If learner level is Beginner,
+                return capstone_project as null.
 
-            Return ONLY the Pydantic schema.
-            """)
+                Return ONLY the Pydantic schema.
+                """)
         
         self.structured_llm = self.llm.with_structured_output(CurriculumPlan)
         self.chain = self.prompt | self.structured_llm
 
     def curriculum_generation(self,state:LearningState):
         try:
+            skill_assessment = state.get("skill_assessment")
+
+            if not skill_assessment:
+                state["response_message"] = (
+                    "⚠️ I don't have your assessment results yet. "
+                    "Please complete the skill assessment questions first before I can build your roadmap."
+                )
+                state["curriculum"] = None
+                return state
+
             result = self.chain.invoke({
-                "skill_assessment": state["skill_assessment"]
+                "skill_assessment": skill_assessment
             })
 
             state["curriculum"] = result
@@ -50,17 +64,11 @@ class CurriculumPlanner:
             state["curriculum_id"] = curriculum_id
             
             roadmap = f"""
-            🎉 <b>Great job!</b>
-
-            Your assessment has been completed successfully.
-
-            Based on your responses, I've identified your current skill level as:
-
-            <b>{result.target_level}</b>
-
-            📚 <b>Your Personalized Learning Roadmap</b>
-
-            """
+                🎉 <b>Great job!</b>
+                Your assessment has been completed successfully.
+                Based on your responses, I've identified your current skill level as:
+                <b>{result.target_level}</b>
+                📚 <b>Your Personalized Learning Roadmap</b>"""
 
             for i, topic in enumerate(result.learning_path, start=1):
 

@@ -17,25 +17,25 @@ class AssessmentQuestionGeneratorAgent:
 
         self.llm = LLM().llm()
 
-        self.prompt = ChatPromptTemplate.from_template("""
-        You are an expert technical interviewer.
+        self.assessment_prompt = ChatPromptTemplate.from_template("""
+        You are an expert technical interviewer conducting a skill assessment.
 
         Generate EXACTLY 3 assessment questions to evaluate a learner's knowledge of:
 
         Topic:
         {topic}
 
+        Session ID: {session_seed}
+
         Rules:
 
-        - Questions should gradually increase in difficulty.
-        - Cover both conceptual and practical understanding.
-        - Questions should help determine whether the learner is:
-            Beginner
-            Intermediate
-            Advanced
-            Expert
-        - Keep questions short and clear.
-        - Do not provide answers.
+        - Questions must gradually increase in difficulty (easiest first, hardest last).
+        - Cover a mix of conceptual understanding and practical/applied knowledge — not all questions should be theory-only.
+        - Questions should be diagnostic: a learner's answer should clearly reveal whether they are at Beginner, Intermediate, Advanced, or Expert level.
+        - Keep each question concise (1-2 sentences), unambiguous, and self-contained.
+        - Do not provide answers, hints, or explanations — questions only.
+        - Vary the phrasing, angle, and specific sub-concept each time this prompt runs, even for the same topic. Do not default to the most generic or "textbook" version of a question — approach the topic from a different angle than a typical assessment would (e.g., a real-world scenario, a common misconception, a comparison between two related concepts, or a "what would happen if..." framing).
+        - Avoid reusing well-known example questions that appear frequently online for this topic.
         - Return ONLY the Pydantic schema.
         """)
 
@@ -50,7 +50,8 @@ class AssessmentQuestionGeneratorAgent:
 
         result = self.chain.invoke({
 
-            "topic": state["topic"]
+            "topic": state["topic"],
+            "session_id":state["user_id"]
 
         })
 

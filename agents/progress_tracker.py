@@ -56,10 +56,8 @@ class ProgressTrackerAgent:
         state["progress"]=report
         state["response_message"] = f"""
         📊 <b>Your Learning Progress</b>
-
         ✅ Mastery: {report.mastery_level}
-
-        🏅 Interview Readiness:
+        🏅 Report:
         {report.interview_readiness}
 
         💪 Strong Topics:
@@ -85,5 +83,4 @@ class ProgressTrackerAgent:
             report=report.model_dump()         
         )
 
-        print("Progress",state["progress_report"])
         return state

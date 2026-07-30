@@ -75,8 +75,13 @@ class ResourceFinderAgent:
         if curriculum is None:
 
             state["response_message"] = (
-                    "Curriculum not found."
-            )
+                    "🤔 <b>Hold on!</b>\n\n"
+                    "I don't have your curriculum planner results yet, so I can't "
+                    "provide resources.\n\n"
+                    "📝 Please complete the skill assessment questions first — "
+                    "your answers help me tailor everything to your actual level.\n\n"
+                    "Type <b>/start</b> to begin your assessment. 🚀"
+                )
 
             return state
 

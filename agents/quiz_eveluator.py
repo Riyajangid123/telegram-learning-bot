@@ -41,7 +41,7 @@ class QuizEvaluationAgent:
 
         evaluation = self.chain.invoke({
 
-            "quiz": state["quiz_questions"],
+            "quiz": state["quiz"],
 
             "answers": state["user_answers"]
 
