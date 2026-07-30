@@ -17,7 +17,7 @@ class AssessmentQuestionGeneratorAgent:
 
         self.llm = LLM().llm()
 
-        self.assessment_prompt = ChatPromptTemplate.from_template("""
+        self.prompt = ChatPromptTemplate.from_template("""
         You are an expert technical interviewer conducting a skill assessment.
 
         Generate EXACTLY 3 assessment questions to evaluate a learner's knowledge of:
