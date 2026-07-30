@@ -40,7 +40,7 @@ class ProgressTrackerAgent:
             | self.llm.with_structured_output(ProgressReport)
         )
 
-    def track_progress(self, state:LearningState):
+    def track_progress(self, state: LearningState):
 
         report = self.chain.invoke({
 
@@ -52,32 +52,41 @@ class ProgressTrackerAgent:
 
         })
 
+        state["progress"] = report
 
-        state["progress"]=report
         state["response_message"] = f"""
         📊 <b>Your Learning Progress</b>
-        ✅ Mastery: {report.mastery}
-        🏅 Report:
-        {report.interview_readiness}
+
+        ✅ Current Level: {report.current_level}
+
+        📈 Overall Progress: {report.overall_progress}%
+
+        🏅 Interview Readiness: {report.interview_readiness}%
 
         💪 Strong Topics:
-        {', '.join(report.strong_topics)}
+        {', '.join(report.strong_topics) if report.strong_topics else 'None yet'}
 
         ⚠️ Weak Topics:
-        {', '.join(report.weak_topics)}
+        {', '.join(report.weak_topics) if report.weak_topics else 'None'}
 
         📚 Completed Topics:
-        {', '.join(report.completed_topics)}
+        {', '.join(report.completed_topics) if report.completed_topics else 'None yet'}
 
-        📖 Next Topics:
-        {', '.join(report.next_topics)}
+        📖 Pending Topics:
+        {', '.join(report.pending_topics) if report.pending_topics else 'None'}
+
+        🔜 Next Topics:
+        {', '.join(report.next_topics) if report.next_topics else 'None'}
+
+        💡 Recommendation:
+        {report.recommendation}
 
         Keep learning! 🚀"""
-        
+
         save_progress(
             user_id=state["user_id"],
             topic_id=state["topic_id"],
-            report=report.model_dump()         
+            report=report.model_dump()
         )
 
         return state
