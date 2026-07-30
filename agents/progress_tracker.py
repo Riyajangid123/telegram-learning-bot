@@ -42,14 +42,17 @@ class ProgressTrackerAgent:
 
     def track_progress(self, state: LearningState):
 
+        if not state.get("quiz_evaluation"):
+            state["response_message"] = (
+                "📊 I don't have enough data yet to show your progress.\n\n"
+                "Please complete the quiz first with <b>/quiz</b>, then try /progress again."
+            )
+            return state
+
         report = self.chain.invoke({
-
             "assessment": state["skill_assessment"],
-
             "curriculum": state["curriculum"],
-
             "quiz_evaluation": state["quiz_evaluation"]
-
         })
 
         state["progress"] = report

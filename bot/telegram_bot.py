@@ -9,6 +9,7 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+import re
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -126,24 +127,48 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = get_user(telegram_id)
 
     if user is None:
-
         create_user(telegram_id, username)
         user = get_user(telegram_id)
 
     if telegram_id in user_sessions:
-
         state = user_sessions[telegram_id]
-
     else:
-
         state = default_state(user, username)
-
         session = get_session(state["user_id"])
-
         if session:
-
             state["phase"] = session[0]
             state["topic_id"] = session[1]
+
+    def parse_quiz_answers(raw_text: str) -> list[dict]:
+        """
+        Parses lines like:
+        "1. B"
+        "3. Python uses indentation"
+        "11: A. To repeat a block of code (Runs as long as...)"
+        into [{"question_id": 1, "answer": "B"}, ...]
+        """
+        parsed = []
+
+        for line in raw_text.strip().split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+
+            match = re.match(r"^(\d+)[\.\:]\s*(.+)$", line)
+            if not match:
+                continue
+
+            question_id = int(match.group(1))
+            answer_text = match.group(2).strip()
+
+            answer_text = re.sub(r"\s*\(.*?\)\s*$", "", answer_text).strip()
+
+            parsed.append({
+                "question_id": question_id,
+                "answer": answer_text
+            })
+
+        return parsed
 
     state["user_message"] = message
 
@@ -151,6 +176,10 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         state["topic"] = message
         topic_id = create_learning_topic(state["user_id"], message)
         state["topic_id"] = topic_id
+
+    # 🔧 THIS WAS MISSING — actually parse and set user_answers
+    if state["phase"] == "awaiting_quiz_answers":
+        state["user_answers"] = parse_quiz_answers(message)
 
     if message == "/resources":
         await update.message.reply_text(
