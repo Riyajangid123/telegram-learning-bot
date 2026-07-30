@@ -51,7 +51,7 @@ class AssessmentQuestionGeneratorAgent:
         result = self.chain.invoke({
 
             "topic": state["topic"],
-            "session_id":state["user_id"]
+            "session_seed":state["user_id"]
 
         })
 

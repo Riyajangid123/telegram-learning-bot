@@ -193,9 +193,9 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     logging.error("Exception while handling update:", exc_info=context.error)
     if isinstance(update, Update) and update.effective_message:
         await update.effective_message.reply_text(
-            "⚠️ Something went wrong finding resources — please try /resources again in a moment."
+            "⚠️ Something went wrong processing that — please try again in a moment.\n\n"
+            "If this keeps happening, try /start to restart."
         )
-
 
 def run_bot():
 

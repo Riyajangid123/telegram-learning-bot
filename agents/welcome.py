@@ -6,7 +6,7 @@ def welcome_agent(state: LearningState):
     state["phase"] = "awaiting_topic"
 
     state["response_message"] = """
-        👋 Welcome to AI Learning Bot!
+        👋 Welcome to AI SkillBuddy!
 
         I'm your personal AI-powered learning assistant.
 
