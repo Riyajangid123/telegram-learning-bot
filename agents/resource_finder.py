@@ -1,5 +1,4 @@
-from ddgs import DDGS
-from ddgs.exceptions import DDGSException, RatelimitException, TimeoutException
+
 from langchain_core.prompts import ChatPromptTemplate
 
 from schema.schema import ResourcePlan
@@ -9,47 +8,31 @@ from graph.state import LearningState
 from database.queries import save_resources
 
 import time
-from ddgs.exceptions import RatelimitException
+import os
+from tavily import TavilyClient
 
-def _safe_search(fn, *args, retries=2, delay=3, **kwargs):
-    for attempt in range(retries + 1):
-        try:
-            return fn(*args, **kwargs)
-        except (RatelimitException, TimeoutException, DDGSException) as e:
-            print(f"Search failed (attempt {attempt + 1}): {e}")
-            if attempt < retries:
-                time.sleep(delay * (attempt + 1))
-            else:
-                return []
-        except Exception as e:
-            # Catch-all so one bad backend response never crashes the whole agent
-            print(f"Unexpected search error: {e}")
-            return []
-            
+tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+
+def _safe_tavily_search(query: str, max_results: int = 2):
+    try:
+        response = tavily_client.search(query, max_results=max_results)
+        return [
+            {"title": r["title"], "url": r["url"]}
+            for r in response.get("results", [])
+        ]
+    except Exception as e:
+        print(f"Tavily search failed for '{query}': {e}")
+        return []
+
 def search_articles(query: str):
-    def _do():
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=2, backend="duckduckgo, brave"))
-        return [{"title": r["title"], "url": r["href"]} for r in results]
-    return _safe_search(_do)
+    return _safe_tavily_search(query)
 
 def youtube_search(query: str):
-    def _do():
-        with DDGS() as ddgs:
-            results = list(ddgs.videos(f"{query} tutorial", max_results=2, backend="duckduckgo"))
-        return [{"title": r["title"], "url": r["content"]} for r in results]
-    return _safe_search(_do)
+    return _safe_tavily_search(f"{query} tutorial site:youtube.com")
 
 def search_courses(query: str):
-    def _do():
-        with DDGS() as ddgs:
-            results = list(ddgs.text(
-                f"{query} free course site:coursera.org OR site:freecodecamp.org",
-                max_results=2,
-                backend="duckduckgo, brave"
-            ))
-        return [{"title": r["title"], "url": r["href"]} for r in results]
-    return _safe_search(_do)
+    return _safe_tavily_search(f"{query} free course site:coursera.org OR site:freecodecamp.org")
+
 
 class ResourceFinderAgent:
 
