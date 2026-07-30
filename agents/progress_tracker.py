@@ -56,7 +56,7 @@ class ProgressTrackerAgent:
         state["progress"]=report
         state["response_message"] = f"""
         📊 <b>Your Learning Progress</b>
-        ✅ Mastery: {report.mastery_level}
+        ✅ Mastery: {report.mastery}
         🏅 Report:
         {report.interview_readiness}
 
@@ -71,9 +71,6 @@ class ProgressTrackerAgent:
 
         📖 Next Topics:
         {', '.join(report.next_topics)}
-
-        📝 Summary:
-        {report.summary}
 
         Keep learning! 🚀"""
         
