@@ -95,6 +95,7 @@ class InterviewPreparation(BaseModel):
 
 class CurriculumPlan(BaseModel):
     target_level: Literal[
+        "Beginner",
         "Intermediate",
         "Advanced",
         "Expert"
