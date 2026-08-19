@@ -39,13 +39,13 @@ class AssessmentQuestionGeneratorAgent:
         - Avoid reusing well-known example questions that appear frequently online for this topic.
         - Return ONLY valid JSON in exactly this format:
 
-        {
+        {{
         "questions": [
             "question 1",
             "question 2",
             "question 3"
         ]
-        }
+        }}
 
         Do not return markdown.
         Do not return Python.
