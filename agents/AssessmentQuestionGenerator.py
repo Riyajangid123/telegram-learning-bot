@@ -36,7 +36,9 @@ class AssessmentQuestionGeneratorAgent:
         - Do not provide answers, hints, or explanations — questions only.
         - Vary the phrasing, angle, and specific sub-concept each time this prompt runs, even for the same topic. Do not default to the most generic or "textbook" version of a question — approach the topic from a different angle than a typical assessment would (e.g., a real-world scenario, a common misconception, a comparison between two related concepts, or a "what would happen if..." framing).
         - Avoid reusing well-known example questions that appear frequently online for this topic.
-        - Return ONLY the Pydantic schema.
+        - Do not generate Python code.
+        - Do not generate a Pydantic class.
+        - Do not explain anything.
         """)
 
         self.chain = (
