@@ -3,6 +3,7 @@ from agents.llm import LLM
 from schema.schema import Quiz
 from graph.state import LearningState
 from database.queries import save_quiz
+from html import escape
 
 class QuizGenerationAgent:
     def __init__(self):
@@ -74,15 +75,15 @@ class QuizGenerationAgent:
         for i, q in enumerate(quiz.questions, start=1):
 
             formatted_quiz += (
-                f"<b>Q{i}. {q.question}</b>\n"
-                f"Topic: {q.topic}\n"
-                f"Difficulty: {q.difficulty}\n"
+                f"<b>Q{i}. {escape(q.question)}</b>\n"
+                f"Topic: {escape(q.topic)}\n"
+                f"Difficulty: {escape(q.difficulty)}\n"
             )
 
             if q.options:
                 for idx, option in enumerate(q.options):
                     formatted_quiz += (
-                        f"{chr(65 + idx)}. {option}\n"
+                        f"{chr(65 + idx)}. {escape(option)}\n"
                     )
 
             formatted_quiz += "\n"
