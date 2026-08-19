@@ -125,7 +125,6 @@ class CurriculumPlan(BaseModel):
         description="Overall guidance for the learner."
     )
 
-
 class Resource(BaseModel):
     title: str
     resource_type: str
@@ -134,15 +133,18 @@ class Resource(BaseModel):
     estimated_minutes: int
 
 
-class ResourcePlan(BaseModel):
+class TopicResources(BaseModel):
     topic: str
     skill_level: str
     areas_of_improvement: List[str]
-    resources: List[Resource]
+
+    articles: List[Resource] = Field(default_factory=list)
+    youtube_videos: List[Resource] = Field(default_factory=list)
+    courses: List[Resource] = Field(default_factory=list)
 
 
 class ResourcePlans(BaseModel):
-    plans: List[ResourcePlan]
+    resources: List[TopicResources]
 
 
 class QuizQuestion(BaseModel):
