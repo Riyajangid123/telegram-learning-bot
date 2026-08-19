@@ -126,16 +126,9 @@ class CurriculumPlan(BaseModel):
     )
 
 
-class LearningResource(BaseModel):
+class Resource(BaseModel):
     title: str
-    resource_type: Literal[
-        "video",
-        "article",
-        "documentation",
-        "course",
-        "tutorial",
-        "practice"
-    ]
+    resource_type: str
     url: str
     description: str
     estimated_minutes: int
@@ -145,14 +138,11 @@ class ResourcePlan(BaseModel):
     topic: str
     skill_level: str
     areas_of_improvement: List[str]
-    resources: List[LearningResource]
+    resources: List[Resource]
 
 
-class TopicResources(BaseModel):
-    topic: str
-    articles: List[LearningResource]
-    youtube_videos: List[LearningResource]
-    courses: List[LearningResource]
+class ResourcePlans(BaseModel):
+    plans: List[ResourcePlan]
 
 
 class QuizQuestion(BaseModel):

@@ -5,7 +5,7 @@ from langgraph.graph.message import add_messages
 from schema.schema import (
     SkillAssessment,
     CurriculumPlan,
-    ResourcePlan,
+    ResourcePlans,
     Quiz,
     QuizEvaluation,
     ProgressReport,
@@ -59,7 +59,7 @@ class LearningState(TypedDict):
 
     curriculum: Optional[CurriculumPlan]
 
-    resources: Optional[ResourcePlan]
+    resources: Optional[ResourcePlans]
 
     quiz: Optional[Quiz]
 

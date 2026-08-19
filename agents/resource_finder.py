@@ -1,7 +1,7 @@
 
 from langchain_core.prompts import ChatPromptTemplate
 
-from schema.schema import ResourcePlan
+from schema.schema import ResourcePlans
 from agents.llm import LLM
 from graph.state import LearningState
 
@@ -70,7 +70,7 @@ class ResourceFinderAgent:
 
         self.chain = (
             self.prompt
-            | self.llm.with_structured_output(ResourcePlan,method="json_schema")
+            | self.llm.with_structured_output(ResourcePlans,method="json_schema")
         )
 
     def resource_finder_agent(self, state: LearningState):
