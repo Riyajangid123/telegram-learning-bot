@@ -19,11 +19,9 @@ class SkillAssessmentEvaluator:
         Topic:
         {topic}
 
-        Questions:
-        {questions}
-
-        User Answers:
-        {answers}
+        Questions and Learner Answers:
+        {qa_text}
+        
 
         INTERNAL SCORING RUBRIC (use these 4 dimensions only to judge quality —
         do NOT output these dimension names anywhere in your response):
@@ -85,9 +83,6 @@ class SkillAssessmentEvaluator:
         90-100 → Expert
 
         The level MUST match the score range above.
-
-        Questions and Learner Answers:
-        {qa_text}
 
         Return only data matching the provided structured output schema.
         Do not output Python code.
