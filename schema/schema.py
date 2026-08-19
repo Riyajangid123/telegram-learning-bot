@@ -22,10 +22,11 @@ class SkillAssessment(BaseModel):
 
     summary: str
 
-    confidence: float = Field(
-        ge=0,
-        le=1
-    )
+    confidence: Literal[
+        "Low",
+        "Medium",
+        "High"
+    ]
 
 
 class CurriculumTopic(BaseModel):
@@ -135,10 +136,6 @@ class TopicResources(BaseModel):
     articles: List[LearningResource]
     youtube_videos: List[LearningResource]
     courses: List[LearningResource]
-
-
-class ResourcePlan(BaseModel):
-    resources: List[TopicResources]
 
 
 class QuizQuestion(BaseModel):

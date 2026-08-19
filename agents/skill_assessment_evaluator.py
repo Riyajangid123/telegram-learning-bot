@@ -77,7 +77,17 @@ class SkillAssessmentEvaluator:
         Advanced
         Expert
 
-        - Score must be between 0 and 100.
+        Use this score-to-level mapping:
+
+        0-39   → Beginner
+        40-69  → Intermediate
+        70-89  → Advanced
+        90-100 → Expert
+
+        The level MUST match the score range above.
+
+        Questions and Learner Answers:
+        {qa_text}
 
         Return only data matching the provided structured output schema.
         Do not output Python code.
@@ -95,16 +105,32 @@ class SkillAssessmentEvaluator:
 
     def skill_assessment_evaluate(self, state: LearningState):
 
+        print("TOPIC:", repr(state["topic"]))
+        print("QUESTIONS:", repr(state["assessment_questions"]))
+        print("ANSWERS:", repr(state["assessment_answers"]))
+
+        questions = state["assessment_questions"]
+        answers = state["assessment_answers"]
+
+        qa_text = "\n\n".join(
+            f"""
+            Question {i}:
+            {question}
+
+            Learner Answer:
+            {answer}
+            """
+
+            for i, (question, answer)
+            in enumerate(zip(questions, answers), start=1)
+        )
+
+
         assessment = self.chain.invoke({
-
             "topic": state["topic"],
-
-            "questions": state["assessment_questions"],
-
-            "answers": state["assessment_answers"]
-
+            "qa_text": qa_text
         })
-
+        
         state["skill_assessment"] = assessment
 
         save_skill_assessment(
