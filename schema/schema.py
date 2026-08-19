@@ -128,7 +128,24 @@ class CurriculumPlan(BaseModel):
 
 class LearningResource(BaseModel):
     title: str
+    resource_type: Literal[
+        "video",
+        "article",
+        "documentation",
+        "course",
+        "tutorial",
+        "practice"
+    ]
     url: str
+    description: str
+    estimated_minutes: int
+
+
+class ResourcePlan(BaseModel):
+    topic: str
+    skill_level: str
+    areas_of_improvement: List[str]
+    resources: List[LearningResource]
 
 
 class TopicResources(BaseModel):
