@@ -35,10 +35,13 @@ class CurriculumPlanner:
                 If learner level is Beginner,
                 return capstone_project as null.
 
-                Return ONLY the Pydantic schema.
+                Return only data matching the provided structured output schema.
+                Do not output Python code.
+                Do not output the Pydantic class.
+                Do not provide explanations outside the structured result.
                 """)
         
-        self.structured_llm = self.llm.with_structured_output(CurriculumPlan)
+        self.structured_llm = self.llm.with_structured_output(CurriculumPlan,method="json_schema")
         self.chain = self.prompt | self.structured_llm
 
     def curriculum_generation(self,state:LearningState):

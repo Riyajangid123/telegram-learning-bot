@@ -33,11 +33,14 @@ class ProgressTrackerAgent:
             - strong topics
             - next topics to learn
 
-            Return ONLY the Pydantic schema.""")
+            Return only data matching the provided structured output schema.
+            Do not output Python code.
+            Do not output the Pydantic class.
+            Do not provide explanations outside the structured result.""")
         
         self.chain = (
             self.progress_prompt
-            | self.llm.with_structured_output(ProgressReport)
+            | self.llm.with_structured_output(ProgressReport,method="json_schema")
         )
 
     def track_progress(self, state: LearningState):

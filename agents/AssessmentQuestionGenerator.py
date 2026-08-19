@@ -3,6 +3,7 @@ from agents.llm import LLM
 from graph.state import LearningState
 from pydantic import BaseModel, Field
 from typing import List
+import json
 
 
 class AssessmentQuestions(BaseModel):
@@ -36,43 +37,50 @@ class AssessmentQuestionGeneratorAgent:
         - Do not provide answers, hints, or explanations — questions only.
         - Vary the phrasing, angle, and specific sub-concept each time this prompt runs, even for the same topic. Do not default to the most generic or "textbook" version of a question — approach the topic from a different angle than a typical assessment would (e.g., a real-world scenario, a common misconception, a comparison between two related concepts, or a "what would happen if..." framing).
         - Avoid reusing well-known example questions that appear frequently online for this topic.
-        - Do not generate Python code.
-        - Do not generate a Pydantic class.
-        - Do not explain anything.
-        """)
+        - Return ONLY valid JSON in exactly this format:
+
+        {
+        "questions": [
+            "question 1",
+            "question 2",
+            "question 3"
+        ]
+        }
+
+        Do not return markdown.
+        Do not return Python.
+        Do not return a Pydantic class.
+                """)
 
         self.chain = (
             self.prompt
             | self.llm.with_structured_output(
-                AssessmentQuestions
+                AssessmentQuestions,
+                method="json_schema"
             )
         )
 
-    def assessment_question_generator(self,state:LearningState):
+    def assessment_question_generator(self, state: LearningState):
 
-        result = self.chain.invoke({
-
+        response = self.chain.invoke({
             "topic": state["topic"],
-            "session_seed":state["user_id"]
-
+            "session_seed": state["user_id"]
         })
 
-        state["assessment_questions"] = result.questions
+        questions=response.questions
 
+        state["assessment_questions"] = questions
         state["phase"] = "awaiting_assessment_answers"
 
-        questions = "\n\n".join(
-
+        formatted_questions = "\n\n".join(
             f"{i+1}. {q}"
-
-            for i, q in enumerate(result.questions)
-
+            for i, q in enumerate(questions)
         )
 
         state["response_message"] = (
             f"Let's assess your knowledge of {state['topic']}.\n\n"
             "Please answer the following questions:\n\n"
-            f"{questions}"
+            f"{formatted_questions}"
         )
 
         return state

@@ -49,12 +49,15 @@ class QuizGenerationAgent:
               - Intermediate topic → mostly "Medium", some "Hard"
               - Advanced topic → mostly "Hard"
 
-            Return ONLY the Pydantic schema.
-            """)
+            Return only data matching the provided structured output schema.
+            Do not output Python code.
+            Do not output the Pydantic class.
+            Do not provide explanations outside the structured result..
+                        """)
         
         self.chain = (
             self.quiz_prompt
-            | self.llm.with_structured_output(Quiz)
+            | self.llm.with_structured_output(Quiz,method="json_schema")
         )
 
     def quiz_generation(self, state: LearningState):

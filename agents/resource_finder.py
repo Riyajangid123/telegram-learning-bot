@@ -61,11 +61,16 @@ class ResourceFinderAgent:
         6. If a topic has no courses, return courses=[].
         7. Every topic from the curriculum MUST appear exactly once.
         8. Return ONLY the ResourcePlan object.
+
+        Return only data matching the provided structured output schema.
+        Do not output Python code.
+        Do not output the Pydantic class.
+        Do not provide explanations outside the structured result.
         """)
 
         self.chain = (
             self.prompt
-            | self.llm.with_structured_output(ResourcePlan)
+            | self.llm.with_structured_output(ResourcePlan,method="json_schema")
         )
 
     def resource_finder_agent(self, state: LearningState):

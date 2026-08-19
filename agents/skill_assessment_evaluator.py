@@ -79,14 +79,17 @@ class SkillAssessmentEvaluator:
 
         - Score must be between 0 and 100.
 
-        Return ONLY the Pydantic schema.
+        Return only data matching the provided structured output schema.
+        Do not output Python code.
+        Do not output the Pydantic class.
+        Do not provide explanations outside the structured result.
         """)
 
         
         self.chain = (
             self.prompt
             | self.llm.with_structured_output(
-                SkillAssessment
+                SkillAssessment,method="json_schema"
             )
         )
 

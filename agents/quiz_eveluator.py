@@ -27,13 +27,16 @@ class QuizEvaluationAgent:
             - Identify strengths.
             - Recommend revision topics.
 
-            Return ONLY the Pydantic schema.
+            Return only data matching the provided structured output schema.
+            Do not output Python code.
+            Do not output the Pydantic class.
+            Do not provide explanations outside the structured result..
             """)
 
         self.chain = (
             self.evaluation_prompt
             | self.llm.with_structured_output(
-                QuizEvaluation
+                QuizEvaluation,method="json_schema"
             )
         )
 
