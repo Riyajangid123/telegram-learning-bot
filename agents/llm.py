@@ -10,7 +10,7 @@ class LLM:
     def llm(self):
 
         model = ChatGroq(
-            model="qwen/qwen3.6-27b",
+            model="openai/gpt-oss-120b",
             temperature=0,
             groq_api_key=os.getenv("GROQ_API_KEY")
         )
