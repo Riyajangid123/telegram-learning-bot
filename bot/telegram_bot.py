@@ -135,11 +135,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML",
         )
         return
-    
-    await update.message.reply_text(
-    result.get("response_message") or "🤔 I didn't quite catch that. Try /start to begin.",
-    parse_mode="HTML",
-    )
 
     user = get_user(telegram_id)
 
