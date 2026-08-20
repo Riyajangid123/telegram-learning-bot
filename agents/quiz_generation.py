@@ -5,6 +5,15 @@ from graph.state import LearningState
 from database.queries import save_quiz
 from html import escape
 
+import random
+
+import random
+
+def shuffle_options(question):
+    if question.type == "MCQ" and question.options:
+        random.shuffle(question.options)
+    return question
+
 class QuizGenerationAgent:
     def __init__(self):
         self.llm = LLM().llm()
@@ -54,7 +63,12 @@ class QuizGenerationAgent:
             Do not output Python code.
             Do not output the Pydantic class.
             Do not provide explanations outside the structured result..
-                        """)
+
+        - For MCQ and TrueFalse questions, `correct_answer` MUST be the exact,
+        verbatim text of the correct option as it appears in `options` —
+        NEVER a letter like "A", "B", "C", or "D".
+        - For Coding questions (no options), `correct_answer` should describe
+        the expected correct output, approach, or key answer.""")
         
         self.chain = (
             self.quiz_prompt
@@ -63,10 +77,11 @@ class QuizGenerationAgent:
 
     def quiz_generation(self, state: LearningState):
 
-        quiz = self.chain.invoke({
-            "curriculum": state["curriculum"]
-        })
+        quiz = self.chain.invoke({"curriculum": state["curriculum"]})
 
+        for q in quiz.questions:
+            shuffle_options(q)
+            
         state["quiz"] = quiz
         state["phase"] = "awaiting_quiz_answers"
 

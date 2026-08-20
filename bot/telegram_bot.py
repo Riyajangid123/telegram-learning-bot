@@ -155,6 +155,8 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Parses lines like:
         "1. B"
+        "1: B"
+        "1 B"                <- now supported
         "3. Python uses indentation"
         "11: A. To repeat a block of code (Runs as long as...)"
         into [{"question_id": 1, "answer": "B"}, ...]
@@ -166,7 +168,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not line:
                 continue
 
-            match = re.match(r"^(\d+)[\.\:]\s*(.+)$", line)
+            match = re.match(r"^(\d+)\s*[\.\:\)]?\s*(.+)$", line)
             if not match:
                 continue
 
@@ -189,9 +191,18 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         topic_id = create_learning_topic(state["user_id"], message)
         state["topic_id"] = topic_id
 
-    # 🔧 THIS WAS MISSING — actually parse and set user_answers
     if state["phase"] == "awaiting_quiz_answers":
-        state["user_answers"] = parse_quiz_answers(message)
+        parsed_answers = parse_quiz_answers(message)
+
+        if not parsed_answers:
+            await update.message.reply_text(
+                "⚠️ I couldn't read your answers. Please use this format:\n\n"
+                "1. A\n2. B\n3. Python uses indentation\n...",
+                parse_mode="HTML",
+            )
+            return
+
+        state["user_answers"] = parsed_answers
 
     if message == "/resources":
         await update.message.reply_text(
