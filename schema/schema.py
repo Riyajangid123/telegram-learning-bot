@@ -127,10 +127,7 @@ class CurriculumPlan(BaseModel):
 
 class Resource(BaseModel):
     title: str
-    resource_type: str
     url: str
-    description: str
-    estimated_minutes: int
 
 
 class TopicResources(BaseModel):

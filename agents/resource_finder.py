@@ -3,52 +3,106 @@ from langchain_core.prompts import ChatPromptTemplate
 from schema.schema import ResourcePlans
 from agents.llm import LLM
 from graph.state import LearningState
-
 from database.queries import save_resources
 
 import time
 import os
-from tavily import TavilyClient
+import re
+import json
 
+from tavily import TavilyClient
 
 tavily_client = TavilyClient(
     api_key=os.getenv("TAVILY_API_KEY")
 )
 
 
-def _safe_tavily_search(query: str, max_results: int = 2):
+def clean_url(url: str) -> str:
+
+    """Convert Markdown URL:
+        [Example](https://example.com)
+         ->
+        https://example.com"""
+    
+
+    if not url:
+        return ""
+
+    url = url.strip()
+
+    match = re.match(
+        r"\[.*?\]\((https?://[^)]+)\)",
+        url
+    )
+
+    if match:
+        return match.group(1)
+
+    return url
+
+
+def _safe_tavily_search(
+    query: str,
+    max_results: int = 2
+):
+
     try:
+
         response = tavily_client.search(
             query=query,
             max_results=max_results
         )
 
-        return [
-            {
-                "title": r.get("title", ""),
-                "url": r.get("url", "")
-            }
-            for r in response.get("results", [])
-        ]
+        results = []
+
+        for result in response.get("results", []):
+
+            title = result.get("title", "")
+            url = clean_url(
+                result.get("url", "")
+            )
+
+            if not url:
+                continue
+
+            results.append(
+                {
+                    "title": title,
+                    "url": url
+                }
+            )
+
+        return results
 
     except Exception as e:
-        print(f"Tavily search failed for '{query}': {e}")
+
+        print(
+            f"Tavily search failed for "
+            f"'{query}': {e}"
+        )
+
         return []
 
 
 def search_articles(query: str):
-    return _safe_tavily_search(query)
+
+    return _safe_tavily_search(
+        query
+    )
 
 
 def youtube_search(query: str):
+
     return _safe_tavily_search(
         f"{query} tutorial site:youtube.com"
     )
 
 
 def search_courses(query: str):
+
     return _safe_tavily_search(
-        f"{query} free course site:coursera.org OR site:freecodecamp.org"
+        f"{query} free course "
+        f"site:coursera.org OR site:freecodecamp.org"
     )
 
 
@@ -58,11 +112,12 @@ class ResourceFinderAgent:
 
         self.llm = LLM().llm()
 
-        self.prompt = ChatPromptTemplate.from_template("""
+        self.prompt = ChatPromptTemplate.from_template(
+            """
 You are an AI Resource Organizer.
 
-Your task is to organize verified learning resources for every
-topic in the curriculum.
+Your task is to organize verified learning resources
+for every topic in the curriculum.
 
 Curriculum:
 {curriculum}
@@ -70,54 +125,75 @@ Curriculum:
 Verified Search Results:
 {search_results}
 
+
 STRICT RULES:
 
 1. Every topic from the curriculum MUST appear exactly once.
 
-2. Use ONLY URLs that exist in Verified Search Results.
+2. Keep the topics in the same order as the curriculum.
 
-3. NEVER invent URLs.
+3. ONLY use URLs that exist in the Verified Search Results.
 
-4. NEVER modify URLs.
+4. NEVER invent a URL.
 
-5. Use the exact title from the Verified Search Results.
+5. NEVER modify a URL.
 
-6. If no articles are available for a topic, return:
+6. Use the exact title from the Verified Search Results.
+
+7. Every resource must contain ONLY:
+   - title
+   - url
+
+8. If there are no articles for a topic:
    "articles": []
 
-7. If no YouTube videos are available for a topic, return:
+9. If there are no YouTube videos for a topic:
    "youtube_videos": []
 
-8. If no courses are available for a topic, return:
-   "courses": []
+10. If there are no courses for a topic:
+    "courses": []
 
-9. Keep resources organized according to the curriculum order.
+11. URLs must be plain URLs.
 
-10. The final response MUST be a JSON OBJECT matching the
-    ResourcePlans schema.
+12. NEVER use Markdown links.
 
-11. Do NOT return a raw JSON array.
-
-12. Do NOT wrap URLs in Markdown.
-    Example:
+    Correct:
     "url": "https://example.com"
 
-13. Do not provide explanations outside the structured result.
+    Incorrect:
+    "url": "[https://example.com](https://example.com)"
+
+13. Do not create additional fields.
+
+14. Do not remove required fields.
+
+15. Return data matching the ResourcePlans schema.
+
+16. Do NOT return a raw JSON array.
+
+17. Do NOT provide explanations.
 
 Return ONLY the structured ResourcePlans object.
-""")
+"""
+        )
 
         self.chain = (
             self.prompt
             | self.llm.with_structured_output(
                 ResourcePlans,
-                method="json_schema"
+                method="function_calling"
             )
         )
 
-    def resource_finder_agent(self, state: LearningState):
 
-        curriculum = state.get("curriculum")
+    def resource_finder_agent(
+        self,
+        state: LearningState
+    ):
+
+        curriculum = state.get(
+            "curriculum"
+        )
 
         if curriculum is None:
 
@@ -133,29 +209,35 @@ Return ONLY the structured ResourcePlans object.
 
             return state
 
+
         all_results = []
 
         for topic in curriculum.learning_path:
 
-            print(f"Searching resources for: {topic.topic}")
+            print(
+                f"\nSearching resources for: "
+                f"{topic.topic}"
+            )
 
             try:
 
                 time.sleep(1)
 
-                articles = search_articles(topic.topic)
+                articles = search_articles(
+                    topic.topic
+                )
 
                 time.sleep(1.5)
 
-                youtube = youtube_search(topic.topic)
+                youtube = youtube_search(
+                    topic.topic
+                )
 
                 time.sleep(1.5)
 
-                courses = search_courses(topic.topic)
-
-                time.sleep(1.5)
-
-                print(f"Search completed for: {topic.topic}")
+                courses = search_courses(
+                    topic.topic
+                )
 
                 all_results.append(
                     {
@@ -165,6 +247,11 @@ Return ONLY the structured ResourcePlans object.
                         "youtube_videos": youtube,
                         "courses": courses
                     }
+                )
+
+                print(
+                    f"Search completed for: "
+                    f"{topic.topic}"
                 )
 
             except Exception as e:
@@ -184,18 +271,39 @@ Return ONLY the structured ResourcePlans object.
                     }
                 )
 
-        print("\n========== SEARCH RESULTS ==========")
-        print(all_results)
+
+        print(
+            "\n========== SEARCH RESULTS =========="
+        )
+
+        print(
+            json.dumps(
+                all_results,
+                indent=2,
+                ensure_ascii=False
+            )
+        )
 
 
-        print("\nCalling Resource LLM...")
+        print(
+            "\nCalling Resource LLM..."
+        )
 
         try:
 
             resource_plan = self.chain.invoke(
                 {
-                    "curriculum": curriculum.model_dump(),
-                    "search_results": all_results
+                    "curriculum": json.dumps(
+                        curriculum.model_dump(),
+                        indent=2,
+                        ensure_ascii=False
+                    ),
+
+                    "search_results": json.dumps(
+                        all_results,
+                        indent=2,
+                        ensure_ascii=False
+                    )
                 }
             )
 
@@ -213,25 +321,45 @@ Return ONLY the structured ResourcePlans object.
 
             return state
 
-        print("LLM returned")
+        print(
+            "\nLLM returned successfully."
+        )
 
         print(
-            resource_plan.model_dump()
+            json.dumps(
+                resource_plan.model_dump(),
+                indent=2,
+                ensure_ascii=False
+            )
         )
 
 
         state["resources"] = resource_plan
 
-        save_resources(
-            curriculum_id=state["curriculum_id"],
-            resources=resource_plan.model_dump()
+        try:
+
+            save_resources(
+                curriculum_id=state["curriculum_id"],
+                resources=resource_plan.model_dump()
+            )
+
+            print(
+                "Resources saved successfully."
+            )
+
+        except Exception as e:
+
+            print(
+                f"Failed to save resources: {e}"
+            )
+
+
+        #telegram message
+
+        msg = (
+            "📚 <b>Learning Resources</b>\n\n"
         )
 
-        print("Resources saved successfully")
-
-        # Telegram message
-
-        msg = "📚 <b>Learning Resources</b>\n\n"
 
         for topic in resource_plan.resources:
 
@@ -241,7 +369,9 @@ Return ONLY the structured ResourcePlans object.
 
             if topic.articles:
 
-                msg += "📄 <b>Articles</b>\n"
+                msg += (
+                    "📄 <b>Articles</b>\n"
+                )
 
                 for article in topic.articles:
 
@@ -251,9 +381,12 @@ Return ONLY the structured ResourcePlans object.
                         f"</a>\n"
                     )
 
+
             if topic.youtube_videos:
 
-                msg += "\n🎥 <b>YouTube</b>\n"
+                msg += (
+                    "\n🎥 <b>YouTube</b>\n"
+                )
 
                 for video in topic.youtube_videos:
 
@@ -265,7 +398,9 @@ Return ONLY the structured ResourcePlans object.
 
             if topic.courses:
 
-                msg += "\n🎓 <b>Courses</b>\n"
+                msg += (
+                    "\n🎓 <b>Courses</b>\n"
+                )
 
                 for course in topic.courses:
 
@@ -274,6 +409,7 @@ Return ONLY the structured ResourcePlans object.
                         f"{course.title}"
                         f"</a>\n"
                     )
+
 
             msg += "\n"
 
