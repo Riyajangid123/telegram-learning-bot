@@ -113,16 +113,33 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     await update.message.reply_text(
-        result["response_message"],
-        parse_mode="HTML",
+    result.get("response_message") or "🤔 I didn't quite catch that. Try /start to begin.",
+    parse_mode="HTML",
     )
 
+
+GREETINGS = {"hi", "hello", "hey", "hii", "yo", "sup", "hola", "helo"}
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     telegram_id = update.effective_user.id
     username = update.effective_user.username or ""
     message = update.message.text.strip()
+
+    # Greeting short-circuit — don't touch the graph at all
+    if message.lower() in GREETINGS:
+        await update.message.reply_text(
+            "👋 Hey there! I'm your AI Learning Assistant.\n\n"
+            "Type <b>/start</b> to begin your skill assessment, "
+            "or continue where you left off if you've already started.",
+            parse_mode="HTML",
+        )
+        return
+    
+    await update.message.reply_text(
+    result.get("response_message") or "🤔 I didn't quite catch that. Try /start to begin.",
+    parse_mode="HTML",
+    )
 
     user = get_user(telegram_id)
 
