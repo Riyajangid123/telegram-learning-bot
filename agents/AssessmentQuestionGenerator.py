@@ -56,7 +56,7 @@ class AssessmentQuestionGeneratorAgent:
             self.prompt
             | self.llm.with_structured_output(
                 AssessmentQuestions,
-                method="json_schema"
+                method="function_calling"
             )
         )
 

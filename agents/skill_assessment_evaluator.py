@@ -94,7 +94,7 @@ class SkillAssessmentEvaluator:
         self.chain = (
             self.prompt
             | self.llm.with_structured_output(
-                SkillAssessment,method="json_schema"
+                SkillAssessment,method="function_calling"
             )
         )
 

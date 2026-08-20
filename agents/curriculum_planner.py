@@ -41,7 +41,7 @@ class CurriculumPlanner:
                 Do not provide explanations outside the structured result.
                 """)
         
-        self.structured_llm = self.llm.with_structured_output(CurriculumPlan,method="json_schema")
+        self.structured_llm = self.llm.with_structured_output(CurriculumPlan,method="function_calling")
         self.chain = self.prompt | self.structured_llm
 
     def curriculum_generation(self,state:LearningState):

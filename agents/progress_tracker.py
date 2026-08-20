@@ -40,7 +40,7 @@ class ProgressTrackerAgent:
         
         self.chain = (
             self.progress_prompt
-            | self.llm.with_structured_output(ProgressReport,method="json_schema")
+            | self.llm.with_structured_output(ProgressReport,method="function_calling")
         )
 
     def track_progress(self, state: LearningState):

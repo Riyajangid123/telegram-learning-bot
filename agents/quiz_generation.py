@@ -58,7 +58,7 @@ class QuizGenerationAgent:
         
         self.chain = (
             self.quiz_prompt
-            | self.llm.with_structured_output(Quiz,method="json_schema")
+            | self.llm.with_structured_output(Quiz,method="function_calling")
         )
 
     def quiz_generation(self, state: LearningState):

@@ -36,7 +36,7 @@ class QuizEvaluationAgent:
         self.chain = (
             self.evaluation_prompt
             | self.llm.with_structured_output(
-                QuizEvaluation,method="json_schema"
+                QuizEvaluation,method="function_calling"
             )
         )
 
